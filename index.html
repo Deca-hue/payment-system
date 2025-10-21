@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Money App | Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white shadow-lg rounded-lg w-full max-w-md p-6">
+    <!-- LOGIN SECTION -->
+    <div id="loginSection">
+      <h1 class="text-2xl font-semibold mb-4 text-center">Login</h1>
+      <input id="loginPhone" type="text" placeholder="Phone Number" class="w-full border p-2 rounded mb-3">
+      <input id="loginCode" type="password" placeholder="Special Code" class="w-full border p-2 rounded mb-3">
+      <button onclick="loginUser()" class="w-full bg-indigo-600 text-white py-2 rounded">Login</button>
+
+      <p class="text-center text-sm mt-3">
+        New user? 
+        <button onclick="toggleSection()" class="text-indigo-600 underline">Create Account</button>
+      </p>
+      <p id="loginMessage" class="text-center mt-2 text-sm text-red-500"></p>
+    </div>
+
+    <!-- REGISTER SECTION (Hidden by default) -->
+    <div id="registerSection" class="hidden">
+      <h1 class="text-2xl font-semibold mb-4 text-center">Create Account</h1>
+      <input id="regName" type="text" placeholder="Full Name" class="w-full border p-2 rounded mb-3">
+      <input id="regPhone" type="text" placeholder="Phone Number" class="w-full border p-2 rounded mb-3">
+      <input id="regCode" type="password" placeholder="Special Code (4 digits)" class="w-full border p-2 rounded mb-3">
+      <button onclick="registerUser()" class="w-full bg-green-600 text-white py-2 rounded">Register</button>
+
+      <p class="text-center text-sm mt-3">
+        Already have an account? 
+        <button onclick="toggleSection()" class="text-indigo-600 underline">Back to Login</button>
+      </p>
+      <p id="registerMessage" class="text-center mt-2 text-sm text-green-600"></p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
