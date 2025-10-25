@@ -3,34 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Money App — Dashboard</title>
+  <title>Money App — Dashboard (Actions + Detailed Modals)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     /* small extras */
-    .glass {
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(6px);
+    .glass { background: rgba(255,255,255,0.6); backdrop-filter: blur(6px); }
+    .pulse { animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.8);} 70% { box-shadow: 0 0 0 10px rgba(239,68,68,0);} 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0);} }
+    /* panel slide helpers */
+    .panel-wrap { position: relative; overflow: hidden; }
+    .slide-base { position: absolute; inset:0; }
+    .slide-in { transform: translateX(0%); transition: transform 360ms cubic-bezier(.2,.8,.2,1); }
+    .slide-out-right { transform: translateX(100%); transition: transform 360ms cubic-bezier(.2,.8,.2,1); }
+    .slide-out-left { transform: translateX(-100%); transition: transform 360ms cubic-bezier(.2,.8,.2,1); }
+    /* centered modal background blur */
+    .modal-backdrop { 
+      backdrop-filter: blur(6px); 
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    /* animated username typing effect helper */
-    .typewriter {
-      overflow: hidden;
-      white-space: nowrap;
-      border-right: .12em solid rgba(0,0,0,0.2);
-      animation: caret 700ms steps(1) infinite;
+    /* Modal fixes */
+    .modal-content {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 28rem;
+      position: relative;
     }
-    @keyframes caret { 50% { border-color: transparent; } 100% { border-color: rgba(0,0,0,0.2); } }
-    /* responsive - thin sidebar when collapsed */
-    .sidebar-collapsed { width: 72px; }
+    .pin-modal {
+      z-index: 9999 !important;
+    }
+    .action-modal {
+      z-index: 9998 !important;
+    }
+    /* tiny shake */
+    @keyframes shake { 0% { transform: translateX(0);} 25% { transform: translateX(-6px);} 50% { transform: translateX(4px);} 75% { transform: translateX(-2px);} 100% { transform: translateX(0);} }
   </style>
 </head>
-<body class="bg-gradient-to-b from-slate-50 to-slate-100 min-h-screen">
+<body class="bg-gradient-to-b from-slate-50 to-slate-100 min-h-screen font-sans">
 
   <!-- Top navbar -->
-  <header class="flex items-center justify-between px-4 py-3 shadow-sm bg-white/60 sticky top-0 z-40">
+  <header class="flex items-center justify-between px-4 py-3 shadow-sm bg-white/70 sticky top-0 z-40">
     <div class="flex items-center gap-4">
-      <button id="mobileToggle" class="md:hidden p-2 rounded hover:bg-slate-100" aria-label="toggle">
-        ☰
-      </button>
       <div class="flex items-center gap-2">
         <div class="w-10 h-10 bg-indigo-600 text-white rounded flex items-center justify-center font-bold">MA</div>
         <div>
@@ -40,32 +57,122 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-3">
-      <div class="hidden md:flex items-center gap-2 text-sm text-slate-600">
-        <div id="notifBell" class="relative cursor-pointer p-2 rounded hover:bg-slate-100">
-          🔔
-          <span id="notifDot" class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+      <!-- SEND Modal (quick action) -->
+      <div id="sendModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+          <h3 class="text-lg font-semibold mb-3">Send Money</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-600">Recipient (phone or account)</label>
+              <input id="send_recipient" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX or Account name" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Amount (KES)</label>
+              <input id="send_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Note (optional)</label>
+              <input id="send_note" class="w-full border p-2 rounded" placeholder="For rent, lunch, ..." />
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('send')">Proceed</button>
+            <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+          </div>
         </div>
-        <button onclick="openProfile()" class="flex items-center gap-2 p-1 rounded hover:bg-slate-100">
-          <div class="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-semibold" id="avatarInitial">J</div>
-          <div class="text-sm" id="navUserName">User</div>
-        </button>
       </div>
+
+      <!-- WITHDRAW Modal (quick action) -->
+      <div id="withdrawModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+          <h3 class="text-lg font-semibold mb-3">Withdraw</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-600">Withdraw to (cash / agent / account)</label>
+              <input id="withdraw_target" class="w-full border p-2 rounded" placeholder="Agent ID or Cash" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Amount (KES)</label>
+              <input id="withdraw_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Note (optional)</label>
+              <input id="withdraw_note" class="w-full border p-2 rounded" placeholder="For pickup, reference..." />
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('withdraw')">Proceed</button>
+            <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+    <div class="flex items-center gap-3">
+      <div class="relative" id="notifDropdownWrap">
+        <button id="notifBtn" aria-label="Notifications" class="p-2 rounded hover:bg-slate-100 relative">
+          <span id="bellIcon" class="text-xl">🔔</span>
+        </button>
+        <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full"></span>
+        <!-- Dropdown for notifications -->
+        <div id="notifDropdown" class="hidden flex-col absolute right-0 top-10 bg-white border rounded shadow-lg min-w-[260px] max-h-80 overflow-y-auto z-50">
+          <div class="flex items-center justify-between px-4 py-2 border-b">
+            <span class="font-semibold text-sm">Notifications</span>
+            <button onclick="clearNotifs()" class="text-xs text-indigo-600">Clear</button>
+          </div>
+          <div id="notifDropdownList" class="text-sm text-slate-600 max-h-60 overflow-y-auto">
+            <!-- notifications will be injected here -->
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden md:flex items-center gap-2 text-sm text-slate-600 relative group cursor-pointer" id="profileDropdownTrigger">
+        <div id="navUserName" class="font-medium">User</div>
+        <div id="avatarInitial" class="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-semibold">U</div>
+        <!-- Dropdown -->
+        <div id="profileDropdown" class="hidden group-hover:flex flex-col absolute right-0 top-10 bg-white border rounded shadow-lg min-w-[160px] z-50">
+          <button onclick="showChangePinModal()" class="px-4 py-2 text-left hover:bg-slate-100 w-full">Change PIN</button>
+          <button onclick="logout()" class="px-4 py-2 text-left hover:bg-slate-100 w-full">Switch Account</button>
+        </div>
+  <!-- Change PIN Modal -->
+  <div id="changePinModal" class="hidden fixed inset-0 z-70 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+      <h3 class="text-lg font-semibold mb-3">Change PIN</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-600">Old PIN</label>
+          <input id="oldPinInput" type="password" maxlength="6" class="w-full border p-2 rounded" placeholder="Current PIN" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">New PIN</label>
+          <input id="newPinInput" type="password" maxlength="6" class="w-full border p-2 rounded" placeholder="New PIN" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Confirm New PIN</label>
+          <input id="confirmNewPinInput" type="password" maxlength="6" class="w-full border p-2 rounded" placeholder="Confirm New PIN" />
+        </div>
+        <p id="changePinMsg" class="text-sm mt-1 text-red-500 hidden"></p>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="saveNewPin()">Save</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeChangePinModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+      </div>
+
       <button onclick="logout()" class="bg-red-500 text-white px-3 py-1 rounded text-sm">Logout</button>
     </div>
   </header>
 
   <div class="flex h-[calc(100vh-64px)]">
-    <!-- SIDEBAR -->
-    <aside id="sidebar" class="hidden md:flex flex-col gap-4 p-4 w-72 bg-white/60 glass border-r">
-      <!-- animated welcome -->
-      <div class="mb-2">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="hidden md:flex flex-col gap-4 p-4 w-72 bg-white/60 border-r">
+      <div>
         <div class="text-sm text-slate-500">Welcome back</div>
-        <div class="text-xl font-bold typewriter" id="animatedName">—</div>
-        <div class="text-xs text-slate-400 mt-1" id="lastSeen">Last seen: just now</div>
+        <div class="text-xl font-bold" id="animatedName">User</div>
+        <div class="text-xs text-slate-400 mt-1" id="lastSeen">Last seen: now</div>
       </div>
 
-      <!-- Accounts list -->
       <div>
         <div class="flex items-center justify-between mb-2">
           <div class="text-sm font-semibold">Your Accounts</div>
@@ -75,18 +182,35 @@
       </div>
 
       <div class="mt-auto">
-        <button class="w-full text-left px-3 py-2 rounded hover:bg-slate-100" onclick="openSettings()">
-          ⚙️ Settings
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded hover:bg-slate-100 text-red-600" onclick="logout()">
-          ⏻ Logout
-        </button>
+        <button class="w-full text-left px-3 py-2 rounded hover:bg-slate-100" onclick="openSettings()">⚙️ Settings</button>
+        <button class="w-full text-left px-3 py-2 rounded hover:bg-slate-100 text-red-600" onclick="logout()">⏻ Logout</button>
       </div>
     </aside>
 
-    <!-- MAIN -->
+    <!-- Main -->
     <main class="flex-1 p-4 overflow-auto">
-      <div class="max-w-4xl mx-auto space-y-6">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+  <!-- ACTION MODAL (Send/Withdraw/Deposit) -->
+  <div id="actionModal" class="hidden fixed inset-0 modal-backdrop action-modal">
+    <div class="modal-content">
+      <h3 id="actionTitle" class="text-lg font-semibold mb-3">Action</h3>
+      <div id="actionForm">
+        <div id="recipientField" class="mb-3">
+          <label class="text-xs text-slate-600">Recipient (phone or account)</label>
+          <input id="recipientInput" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX or Account name">
+        </div>
+        <label class="text-xs text-slate-600">Amount (KES)</label>
+        <input id="amountInput" type="number" class="w-full border p-2 rounded mb-3" placeholder="Amount">
+        <label class="text-xs text-slate-600">Note (optional)</label>
+        <input id="noteInput" class="w-full border p-2 rounded mb-3" placeholder="For rent, lunch, ..." />
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button id="confirmActionBtn" class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="confirmAction()">Confirm</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeActionModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
         <!-- ACCOUNT SUMMARY -->
         <section class="grid md:grid-cols-3 gap-4 items-start">
@@ -95,7 +219,7 @@
               <div>
                 <div class="text-xs text-slate-500">Active Account</div>
                 <div class="text-lg font-semibold" id="activeAccountName">Main</div>
-                <div class="text-xs text-slate-400">You can rename or add more accounts</div>
+                <div class="text-xs text-slate-400">Switch accounts from the sidebar</div>
               </div>
 
               <div class="text-right">
@@ -106,31 +230,12 @@
             </div>
 
             <div class="flex gap-3 mt-3">
-              <button onclick="requirePinAndOpen('send')" class="flex-1 bg-blue-600 text-white py-2 rounded shadow">Send</button>
-              <button onclick="requirePinAndOpen('withdraw')" class="flex-1 bg-yellow-500 text-white py-2 rounded shadow">Withdraw</button>
-              <button onclick="openDeposit()" class="flex-1 bg-green-600 text-white py-2 rounded shadow">Deposit</button>
-            </div>
-
-            <!-- quick stats / sparkline -->
-            <div class="mt-4 grid grid-cols-3 gap-3 text-sm">
-              <div class="p-3 rounded bg-slate-50">
-                <div class="text-xs text-slate-500">This Week</div>
-                <div class="font-semibold" id="weekNet">+KES 0</div>
-              </div>
-              <div class="p-3 rounded bg-slate-50">
-                <div class="text-xs text-slate-500">Transactions</div>
-                <div class="font-semibold" id="txCount">0</div>
-              </div>
-              <div class="p-3 rounded bg-slate-50">
-                <div class="text-xs text-slate-500">Spark</div>
-                <div class="mt-2">
-                  <svg id="spark" width="120" height="36" viewBox="0 0 120 36" preserveAspectRatio="none"></svg>
-                </div>
-              </div>
+              <button onclick="startAction('send')" class="flex-1 bg-blue-600 text-white py-2 rounded shadow">Send</button>
+              <button onclick="startAction('withdraw')" class="flex-1 bg-yellow-500 text-white py-2 rounded shadow">Withdraw</button>
+              <button onclick="startAction('deposit')" class="flex-1 bg-green-600 text-white py-2 rounded shadow">Deposit</button>
             </div>
           </div>
 
-          <!-- notifications & shortcuts -->
           <div class="bg-white p-4 rounded-lg shadow flex flex-col gap-3">
             <div class="flex items-center justify-between">
               <div class="text-sm font-semibold">Notifications</div>
@@ -148,73 +253,251 @@
           </div>
         </section>
 
-        <!-- TRANSACTIONS -->
-        <section class="bg-white p-4 rounded-lg shadow">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold">Recent Transactions</h3>
-            <div class="text-sm text-slate-500">Showing last 20</div>
-          </div>
-          <div id="txList" class="space-y-2 text-sm">
-            <p class="text-slate-500">No transactions yet.</p>
-          </div>
-          <!-- Delete Transaction Confirmation Modal -->
-          <div id="deleteTransactionModal" class="hidden fixed inset-0 z-60 bg-black/50 flex items-center justify-center p-4">
-            <div class="bg-white rounded-lg p-6 w-full max-w-sm">
-              <h3 class="text-lg font-semibold mb-3">Delete Transaction</h3>
-              <p class="text-sm text-slate-500 mb-3">Are you sure you want to delete this transaction? This action cannot be undone.</p>
-              <div class="flex gap-2">
-                <button class="flex-1 bg-red-600 text-white py-2 rounded" onclick="confirmDeleteTransaction()">Delete</button>
-                <button class="flex-1 py-2 rounded border" onclick="closeDeleteTransactionModal()">Cancel</button>
-              </div>
+        <!-- Actions vs Notifications wrapper -->
+        <section class="bg-white p-0 rounded-lg shadow flex flex-col md:flex-row overflow-hidden" style="min-height:420px;">
+          <!-- Left: Money Actions -->
+          <div class="flex-1 p-6 bg-gradient-to-b from-indigo-50 to-white flex flex-col gap-6 justify-center">
+            <h3 class="font-semibold text-lg mb-2">Quick Actions</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <button class="flex flex-col items-center p-4 rounded-xl bg-white shadow hover:bg-indigo-50 transition group" onclick="startAction('bank')">
+                <span class="text-3xl mb-2">🏦</span>
+                <span class="font-medium">Send to Bank</span>
+                <span class="text-xs text-slate-500 mt-1">Bank transfer</span>
+              </button>
+              <button class="flex flex-col items-center p-4 rounded-xl bg-white shadow hover:bg-indigo-50 transition group" onclick="startAction('paypal')">
+                <span class="text-3xl mb-2">💳</span>
+                <span class="font-medium">Send to PayPal</span>
+                <span class="text-xs text-slate-500 mt-1">PayPal transfer</span>
+              </button>
+              <button class="flex flex-col items-center p-4 rounded-xl bg-white shadow hover:bg-indigo-50 transition group" onclick="startAction('agent')">
+                <span class="text-3xl mb-2">🏪</span>
+                <span class="font-medium">Withdraw Agent</span>
+                <span class="text-xs text-slate-500 mt-1">Agent cashout</span>
+              </button>
+              <button class="flex flex-col items-center p-4 rounded-xl bg-white shadow hover:bg-indigo-50 transition group" onclick="startAction('mpesa')">
+                <span class="text-3xl mb-2">📱</span>
+                <span class="font-medium">Lipa na M-Pesa</span>
+                <span class="text-xs text-slate-500 mt-1">STK Push</span>
+              </button>
+              <button class="flex flex-col items-center p-4 rounded-xl bg-white shadow hover:bg-indigo-50 transition group col-span-2" onclick="startAction('bills')">
+                <span class="text-3xl mb-2">📄</span>
+                <span class="font-medium">Pay Bills</span>
+                <span class="text-xs text-slate-500 mt-1">Utilities & services</span>
+              </button>
             </div>
           </div>
+          <!-- Right: Activity Feed
+          <div class="w-full md:w-96 border-l bg-white flex flex-col">
+            <div class="flex items-center justify-between px-6 pt-6 pb-2">
+              <h3 class="font-semibold text-lg">Activity</h3>
+              <button class="text-xs text-indigo-600" onclick="showActionsFromNotif()">Show Actions</button>
+            </div>
+            <div id="txContainer" class="flex-1 overflow-auto px-6 pb-6" style="max-height:360px;">
+              <p class="text-slate-500">Loading transactions...</p>
+            </div>
+          </div> -->
         </section>
 
       </div>
     </main>
   </div>
 
-  <!-- ACTION MODAL -->
-  <div id="actionModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg p-6 w-full max-w-md">
-      <h3 id="actionTitle" class="text-lg font-semibold mb-3">Action</h3>
+  <!-- ------------------------
+       CENTERED DETAILED MODALS
+       ------------------------ -->
 
-      <div id="actionForm">
-        <div id="recipientField" class="mb-3">
-          <label class="text-xs text-slate-600">Recipient (phone or account)</label>
-          <input id="recipientInput" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX or Account name">
+  <!-- Send to Bank Modal -->
+  <div id="bankModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+      <h3 class="text-lg font-semibold mb-2">Send to Bank</h3>
+      <p class="text-sm text-slate-500 mb-3">Fill bank details below.</p>
+
+      <div class="space-y-2">
+        <div>
+          <label class="text-xs text-slate-600">Bank Name</label>
+          <input id="bank_name" class="w-full border p-2 rounded" placeholder="e.g., KCB" />
         </div>
-
-        <label class="text-xs text-slate-600">Amount (KES)</label>
-        <input id="amountInput" type="number" class="w-full border p-2 rounded mb-3" placeholder="Amount">
-
-        <label class="text-xs text-slate-600">Note (optional)</label>
-        <input id="noteInput" class="w-full border p-2 rounded mb-3" placeholder="For rent, lunch, ..." />
+        <div>
+          <label class="text-xs text-slate-600">Account Number</label>
+          <input id="bank_account" class="w-full border p-2 rounded" placeholder="Account number" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-slate-600">Bank Code (optional)</label>
+            <input id="bank_code" class="w-full border p-2 rounded" placeholder="e.g., 01" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-600">Amount (KES)</label>
+            <input id="bank_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Note</label>
+          <input id="bank_note" class="w-full border p-2 rounded" placeholder="Optional note" />
+        </div>
       </div>
 
-      <div class="flex gap-2">
-        <button id="confirmActionBtn" class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="confirmAction()">Confirm</button>
-        <button class="flex-1 py-2 rounded border" onclick="closeActionModal()">Cancel</button>
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('bank')">Proceed</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
       </div>
     </div>
   </div>
 
-  <!-- PIN / Re-auth Modal -->
-  <div id="pinModal" class="hidden fixed inset-0 z-60 bg-black/50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+  <!-- Send to PayPal Modal -->
+  <div id="paypalModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-semibold mb-2">Send to PayPal</h3>
+      <p class="text-sm text-slate-500 mb-3">Enter PayPal email and amount.</p>
+
+      <div class="space-y-2">
+        <div>
+          <label class="text-xs text-slate-600">PayPal Email</label>
+          <input id="paypal_email" class="w-full border p-2 rounded" placeholder="email@example.com" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Amount (KES)</label>
+          <input id="paypal_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Note</label>
+          <input id="paypal_note" class="w-full border p-2 rounded" placeholder="Optional note" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('paypal')">Proceed</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw from Agent Modal -->
+  <div id="agentModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-semibold mb-2">Withdraw from Agent</h3>
+      <p class="text-sm text-slate-500 mb-3">Choose agent location and amount.</p>
+
+      <div class="space-y-2">
+        <div>
+          <label class="text-xs text-slate-600">Agent</label>
+          <select id="agent_select" class="w-full border p-2 rounded">
+            <option value="">Select agent location</option>
+            <option value="AG-001|Downtown Agent">AG-001 — Downtown Agent</option>
+            <option value="AG-021|Mall Agent">AG-021 — Mall Agent</option>
+            <option value="AG-092|Corner Shop Agent">AG-092 — Corner Shop Agent</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Amount (KES)</label>
+          <input id="agent_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Recipient name (for pickup)</label>
+          <input id="agent_name" class="w-full border p-2 rounded" placeholder="Name for pickup" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('agent')">Proceed</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lipa na M-Pesa Modal (STK mock) -->
+  <div id="mpesaModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-semibold mb-2">Lipa na M-Pesa (mock)</h3>
+      <p class="text-sm text-slate-500 mb-3">Simulate STK push (mock behavior).</p>
+
+      <div class="space-y-2">
+        <div>
+          <label class="text-xs text-slate-600">Business Number / Till</label>
+          <input id="mpesa_biz" class="w-full border p-2 rounded" placeholder="e.g., 123456" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Account / Reference</label>
+          <input id="mpesa_ref" class="w-full border p-2 rounded" placeholder="Order ref" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Amount (KES)</label>
+          <input id="mpesa_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('mpesa')">Proceed (STK)</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pay Bills Modal -->
+  <div id="billsModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-semibold mb-2">Pay Bills</h3>
+      <p class="text-sm text-slate-500 mb-3">Pay utilities and subscriptions.</p>
+
+      <div class="space-y-2">
+        <div>
+          <label class="text-xs text-slate-600">Bill Type</label>
+          <select id="bill_type" class="w-full border p-2 rounded">
+            <option value="electricity">Electricity</option>
+            <option value="water">Water</option>
+            <option value="tv">TV Subscription</option>
+            <option value="internet">Internet</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Reference / Account</label>
+          <input id="bill_ref" class="w-full border p-2 rounded" placeholder="Account or reference" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-600">Amount (KES)</label>
+          <input id="bill_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('bills')">Proceed</button>
+        <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction Detail Modal -->
+  <div id="txDetailModal" class="hidden fixed inset-0 z-70 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 id="txDetailTitle" class="text-lg font-semibold mb-2">Transaction</h3>
+      <div id="txDetailBody" class="text-sm text-slate-700 space-y-2">
+        <!-- filled by JS -->
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="closeTxDetail()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIN / Re-auth Modal (centered) -->
+  <div id="pinModal" class="hidden fixed inset-0 modal-backdrop pin-modal">
+    <div id="pinBox" class="modal-content">
       <h3 class="text-lg font-semibold mb-3">Enter PIN to continue</h3>
-      <p class="text-sm text-slate-500 mb-3">This action requires re-authentication</p>
-      <input id="pinInput" type="password" maxlength="6" class="w-full border p-2 rounded mb-4" placeholder="Your 4-6 digit code">
+      <p class="text-sm text-slate-500 mb-3">This action requires your 4-6 digit PIN.</p>
+      <input id="pinInput" type="password" maxlength="6" class="w-full border p-2 rounded mb-4" placeholder="Your PIN" />
       <div class="flex gap-2">
         <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="verifyPin()">Unlock</button>
-        <button class="flex-1 py-2 rounded border" onclick="closePinModal()">Cancel</button>
+        <button class="flex-1 py-2 rounded border" onclick="cancelPin()">Cancel</button>
       </div>
       <p id="pinMsg" class="text-sm mt-2 text-red-500 hidden"></p>
     </div>
   </div>
 
-  <!-- Add / Rename Account Modal -->
-  <div id="acctModal" class="hidden fixed inset-0 z-60 bg-black/50 flex items-center justify-center p-4">
+  <!-- small toast -->
+  <div id="toastWrap" class="fixed bottom-6 right-6 z-90"></div>
+
+  <!-- Add Account Modal -->
+  <div id="acctModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
     <div class="bg-white rounded-lg p-6 w-full max-w-sm">
       <h3 id="acctModalTitle" class="text-lg font-semibold mb-3">Add Account</h3>
       <input id="acctNameInput" class="w-full border p-2 rounded mb-3" placeholder="Account name (e.g., Savings)"/>
@@ -222,22 +505,6 @@
       <div class="flex gap-2">
         <button class="flex-1 bg-green-600 text-white py-2 rounded" onclick="saveAccount()">Save</button>
         <button class="flex-1 py-2 rounded border" onclick="closeAcctModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Profile drawer (simple) -->
-  <div id="profileDrawer" class="hidden fixed right-0 top-0 h-full z-50 bg-black/50 w-full" onclick="closeProfile()">
-    <div class="ml-auto bg-white w-80 h-full p-4 shadow-lg" onclick="event.stopPropagation()">
-      <div onclick="closeProfile()">
-        <h3 class="text-lg font-semibold cursor-pointer" id="profileName">Profile</h3>
-        <p class="text-sm text-slate-600 cursor-pointer" id="profilePhone">Phone</p>
-      </div>
-      <hr class="my-3" />
-      <div class="text-sm">
-        <button class="w-full text-left py-2 rounded hover:bg-slate-50" onclick="showChangeCode()">Change PIN</button>
-        <button class="w-full text-left py-2 rounded hover:bg-slate-50" onclick="openSupport()">Contact Support</button>
-        <button class="w-full text-left py-2 rounded hover:bg-slate-50 text-red-600" onclick="logout()">Logout</button>
       </div>
     </div>
   </div>

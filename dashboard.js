@@ -1,23 +1,74 @@
-/* -------------------------
-Data model & persistence
-------------------------- */
-    const CURRENT_USER_KEY = 'currentUser';  // phone set by login
-    const USERS_PREFIX = 'user_'; // per-user key: user_<phone>
+    // Change PIN Modal logic
+    function showChangePinModal() {
+      document.getElementById('oldPinInput').value = '';
+      document.getElementById('newPinInput').value = '';
+      document.getElementById('confirmNewPinInput').value = '';
+      document.getElementById('changePinMsg').classList.add('hidden');
+      document.getElementById('changePinModal').classList.remove('hidden');
+    }
+
+    function closeChangePinModal() {
+      document.getElementById('changePinModal').classList.add('hidden');
+    }
+
+    function saveNewPin() {
+      const oldPin = document.getElementById('oldPinInput').value.trim();
+      const newPin = document.getElementById('newPinInput').value.trim();
+      const confirmPin = document.getElementById('confirmNewPinInput').value.trim();
+      const msg = document.getElementById('changePinMsg');
+      msg.classList.add('hidden');
+      msg.textContent = '';
+      if (!oldPin || !newPin || !confirmPin) {
+        msg.textContent = 'All fields are required.';
+        msg.classList.remove('hidden');
+        return;
+      }
+      if (oldPin !== (user.code || '')) {
+        msg.textContent = 'Old PIN is incorrect.';
+        msg.classList.remove('hidden');
+        return;
+      }
+      if (newPin.length < 4 || newPin.length > 6) {
+        msg.textContent = 'PIN must be 4-6 digits.';
+        msg.classList.remove('hidden');
+        return;
+      }
+      if (newPin !== confirmPin) {
+        msg.textContent = 'New PINs do not match.';
+        msg.classList.remove('hidden');
+        return;
+      }
+      if (newPin === oldPin) {
+        msg.textContent = 'New PIN must be different.';
+        msg.classList.remove('hidden');
+        return;
+      }
+      user.code = newPin;
+      saveUser(user);
+      closeChangePinModal();
+      showToast('PIN changed successfully');
+    }
+ /* -------------------------
+       Storage & boot
+       ------------------------- */
+    const CURRENT_USER_KEY = 'currentUser';
+    const USERS_PREFIX = 'user_';
     let currentUserPhone = localStorage.getItem(CURRENT_USER_KEY);
     if (!currentUserPhone) {
-      // Not logged in — go back
       window.location.href = 'index.html';
     }
 
-    // fetch user object from storage
+    function genId() { return 'a' + Math.random().toString(36).slice(2,9); }
+    function now() { return new Date().toISOString(); }
+    function formatCurrency(n) { return 'KES ' + Number(n).toLocaleString(); }
+    function shortDate(s) { return new Date(s).toLocaleString(); }
+
     function loadUser() {
       const raw = localStorage.getItem(USERS_PREFIX + currentUserPhone);
       if (!raw) {
-        // fallback: older format where user was saved at phone directly
         const alt = localStorage.getItem(currentUserPhone);
         if (alt) {
           const parsed = JSON.parse(alt);
-          // migrate to new shape
           const user = {
             name: parsed.name || 'User',
             phone: parsed.phone || currentUserPhone,
@@ -28,74 +79,88 @@ Data model & persistence
               balance: parsed.balance || (parsed.balance === 0 ? 0 : 1000),
               transactions: parsed.transactions || []
             }],
-            notifications: []
+            notifications: parsed.notifications || []
           };
           localStorage.setItem(USERS_PREFIX + currentUserPhone, JSON.stringify(user));
           localStorage.removeItem(currentUserPhone);
           return user;
         } else {
-          // nothing: redirect
           window.location.href = 'index.html';
         }
       }
       return JSON.parse(raw);
     }
 
-    function saveUser(user) {
-      localStorage.setItem(USERS_PREFIX + currentUserPhone, JSON.stringify(user));
-    }
-
-    // helpers
-    function genId() { return 'a' + Math.random().toString(36).slice(2,9); }
-    function now() { return new Date().toISOString(); }
-    function formatCurrency(n) { return 'KES ' + Number(n).toLocaleString(); }
-    function shortDate(s) { const d = new Date(s); return d.toLocaleString(); }
+    function saveUser(u) { localStorage.setItem(USERS_PREFIX + currentUserPhone, JSON.stringify(u)); }
 
     /* -------------------------
        App state
        ------------------------- */
     let user = loadUser();
-    let activeAccountId = user.accounts && user.accounts.length ? user.accounts[0].id : null;
-    let pendingAction = null; // 'send'|'withdraw' etc
-    let pendingActionData = {}; // hold form details if needed
+    if (!user.accounts || !user.accounts.length) {
+      user.accounts = [{ id: genId(), name: 'Main', balance: 1000, transactions: [] }];
+      saveUser(user);
+    }
+    let activeAccountId = user.accounts[0].id;
+    let pendingAction = null;
+    let pendingActionPayload = null; // form data waiting for PIN
 
     /* -------------------------
-       Initial UI wiring
+       Init UI
        ------------------------- */
-    const animatedNameEl = document.getElementById('animatedName');
-    const navUserName = document.getElementById('navUserName');
-    const avatarInitial = document.getElementById('avatarInitial');
-
     function init() {
-      // show name with animation
-      typeWriter(user.name || 'User', animatedNameEl, 60);
-      navUserName.textContent = user.name || 'User';
-      avatarInitial.textContent = (user.name || 'U').charAt(0).toUpperCase();
-
-      // populate accounts list
+      document.getElementById('animatedName').textContent = user.name || 'User';
+      document.getElementById('navUserName').textContent = user.name || 'User';
+      document.getElementById('avatarInitial').textContent = (user.name||'U').charAt(0).toUpperCase();
       renderAccounts();
       setActiveAccount(activeAccountId);
+        renderNotifs(); // Call to render notifications
+        document.getElementById('notifBtn').addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleNotifDropdown();
+        });
+      updateNotifBadge();
 
-      // notif sample
-      renderNotifs();
+    
+      // Notification Dropdown logic
+      function toggleNotifDropdown() {
+        const dd = document.getElementById('notifDropdown');
+        if (dd.classList.contains('hidden')) {
+          renderNotifDropdownList();
+          dd.classList.remove('hidden');
+          setTimeout(() => {
+            document.addEventListener('mousedown', notifDropdownOutsideClick);
+          }, 0);
+        } else {
+          dd.classList.add('hidden');
+          document.removeEventListener('mousedown', notifDropdownOutsideClick);
+        }
+      }
+    
+      function notifDropdownOutsideClick(e) {
+        const wrap = document.getElementById('notifDropdownWrap');
+        if (!wrap.contains(e.target)) {
+          document.getElementById('notifDropdown').classList.add('hidden');
+          document.removeEventListener('mousedown', notifDropdownOutsideClick);
+        }
+      }
+    
+      function renderNotifDropdownList() {
+        const list = document.getElementById('notifDropdownList');
+        if (!user.notifications || user.notifications.length === 0) {
+          list.innerHTML = '<div class="p-4 text-slate-400 text-center">No new notifications</div>';
+        } else {
+          // Show most recent first
+          const notifs = [...user.notifications].reverse();
+          list.innerHTML = notifs.map(n => `<div class="text-sm p-3 border-b last:border-b-0 ${n.important ? 'bg-yellow-50' : ''}">${n.text}</div>`).join('');
+        }
+      }
+      document.getElementById('notifBtn').addEventListener('click', onNotifClicked);
     }
     init();
 
     /* -------------------------
-       Animated typewriter (one-time)
-       ------------------------- */
-    function typeWriter(text, el, speed=80) {
-      el.textContent = '';
-      let i = 0;
-      const t = setInterval(() => {
-        el.textContent += text[i] ?? '';
-        i++;
-        if (i >= text.length) clearInterval(t);
-      }, speed);
-    }
-
-    /* -------------------------
-       Accounts UI
+       Accounts
        ------------------------- */
     function renderAccounts() {
       const container = document.getElementById('accountsList');
@@ -117,11 +182,7 @@ Data model & persistence
             <button class="text-xs text-red-500" onclick="removeAccount('${acc.id}')">Delete</button>
           </div>
         `;
-        row.onclick = (e) => { 
-          // prevent when clicking inner buttons
-          if (e.target.tagName.toLowerCase() === 'button') return;
-          setActiveAccount(acc.id);
-        };
+        row.onclick = (e) => { if (e.target.tagName.toLowerCase() === 'button') return; setActiveAccount(acc.id); };
         container.appendChild(row);
       });
     }
@@ -135,15 +196,8 @@ Data model & persistence
       document.getElementById('activeAccountName').textContent = acc.name;
       document.getElementById('activeBalance').textContent = formatCurrency(acc.balance);
       document.getElementById('balanceUpdated').textContent = 'Updated: ' + shortDate(now());
-      document.getElementById('txCount').textContent = acc.transactions.length;
-      renderTxList(acc.transactions);
-      renderSpark(acc.transactions);
-      renderAccounts();
     }
 
-    /* -------------------------
-       Add / Rename / Delete account
-       ------------------------- */
     function showAddAccount() {
       document.getElementById('acctModalTitle').textContent = 'Add Account';
       document.getElementById('acctNameInput').value = '';
@@ -161,11 +215,12 @@ Data model & persistence
       document.getElementById('acctModal').dataset.id = id;
     }
     function removeAccount(id) {
-      if (!confirm('Delete this account? This cannot be undone.')) return;
+      if (!confirm('Delete this account?')) return;
       if (user.accounts.length === 1) { alert('You must have at least one account'); return; }
       user.accounts = user.accounts.filter(a => a.id !== id);
       if (activeAccountId === id) activeAccountId = user.accounts[0].id;
       saveUser(user);
+      renderAccounts();
       setActiveAccount(activeAccountId);
     }
     function closeAcctModal() { document.getElementById('acctModal').classList.add('hidden'); }
@@ -183,82 +238,112 @@ Data model & persistence
         const id = document.getElementById('acctModal').dataset.id;
         const acc = user.accounts.find(a => a.id === id);
         acc.name = name;
-        // optionally update balance:
         acc.balance = init;
         saveUser(user);
         setActiveAccount(id);
         closeAcctModal();
       }
+      renderAccounts();
     }
 
     /* -------------------------
-       Transactions UI
-       ------------------------- */
-    function renderTxList(transactions) {
-      const container = document.getElementById('txList');
-      container.innerHTML = '';
-      if (!transactions || transactions.length === 0) {
-        container.innerHTML = '<p class="text-slate-500">No transactions yet.</p>';
-        return;
-      }
-      const recent = transactions.slice().reverse().slice(0, 20);
-      recent.forEach(tx => {
-        const row = document.createElement('div');
-        row.className = 'flex items-center justify-between p-2 rounded hover:bg-slate-50';
-        row.innerHTML = `
-          <div>
-            <div class="text-sm">${tx.type === 'credit' ? 'Received' : tx.type === 'deposit' ? 'Deposit' : tx.type} ${tx.to ? '→ ' + (tx.toName || tx.to) : ''}</div>
-            <div class="text-xs text-slate-400">${shortDate(tx.date)} — ${tx.note || ''}</div>
-          </div>
-          <div class="text-right">
-            <div class="font-medium ${tx.type === 'credit' || tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}">
-              ${tx.type === 'credit' || tx.type === 'deposit' ? '+' : '-'}${formatCurrency(tx.amount).replace('KES ', '')}
-            </div>
-            <div class="text-xs text-slate-400">${tx.status || 'done'}</div>
-          </div>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    /* -------------------------
-       Sparkline (very simple)
-       ------------------------- */
-    function renderSpark(transactions=[]) {
-      const svg = document.getElementById('spark');
-      svg.innerHTML = '';
-      const data = transactions.slice(-12).map(t => t.amount * (t.type === 'credit' || t.type==='deposit' ? 1 : -1));
-      if (!data.length) {
-        // placeholder
-        svg.innerHTML = `<polyline points="0,30 20,20 40,22 60,12 80,18 100,14 120,16" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
-        return;
-      }
-      const w = 120, h = 36;
-      const min = Math.min(...data), max = Math.max(...data);
-      const range = (max - min) || 1;
-      const step = w / Math.max(1, data.length - 1);
-      const pts = data.map((v,i) => {
-        const x = i * step;
-        const y = h - ((v - min) / range) * (h - 6) - 3;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(' ');
-      svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
-    }
-
-    /* -------------------------
-       Notifications
+       Notifications & transactions view behavior
        ------------------------- */
     function renderNotifs() {
       const list = document.getElementById('notificationsList');
       if (!user.notifications || user.notifications.length === 0) {
         list.textContent = 'No new notifications';
       } else {
-        list.innerHTML = user.notifications.map(n => `<div class="text-sm p-2 rounded ${n.important ? 'bg-yellow-50' : ''}">${n.text}</div>`).join('');
+        // Show most recent first
+        const notifs = [...user.notifications].reverse();
+        list.innerHTML = notifs.map(n => `<div class="text-sm p-2 rounded ${n.important ? 'bg-yellow-50' : ''}">${n.text}</div>`).join('');
       }
     }
-    function clearNotifs() { user.notifications = []; saveUser(user); renderNotifs(); }
 
-    /* -------------------------
+    function updateNotifBadge() {
+      const b = document.getElementById('notifBadge');
+      const bell = document.getElementById('bellIcon');
+      const unread = (user.notifications || []).filter(n => !n.read).length;
+      if (unread > 0) {
+        b.textContent = unread;
+        b.classList.remove('hidden');
+        bell.classList.add('pulse');
+      } else {
+        b.classList.add('hidden');
+        bell.classList.remove('pulse');
+      }
+    }
+
+    function onNotifClicked() {
+      // mark all read
+      (user.notifications || []).forEach(n => n.read = true);
+      saveUser(user);
+      renderNotifs();
+      updateNotifBadge();
+
+      // slide actions out left and notifications in from right
+      const actions = document.getElementById('actionsView');
+      const notes = document.getElementById('notificationsView');
+      actions.classList.remove('slide-in'); actions.classList.add('slide-out-left');
+      notes.classList.remove('slide-out-right'); notes.classList.add('slide-in');
+
+      // populate tx list (transactions from active account)
+      populateTxContainer();
+    }
+
+    function showActionsFromNotif() {
+      const actions = document.getElementById('actionsView');
+      const notes = document.getElementById('notificationsView');
+      notes.classList.remove('slide-in'); notes.classList.add('slide-out-right');
+      actions.classList.remove('slide-out-left'); actions.classList.add('slide-in');
+    }
+
+    function populateTxContainer() {
+      const container = document.getElementById('txContainer');
+      container.innerHTML = '';
+      const acc = user.accounts.find(a => a.id === activeAccountId);
+      if (!acc || !acc.transactions || acc.transactions.length === 0) {
+        container.innerHTML = '<p class="text-slate-500">No transactions yet.</p>';
+        return;
+      }
+      const list = acc.transactions.slice().reverse();
+      list.forEach(tx => {
+        const el = document.createElement('div');
+        el.className = 'p-3 border rounded mb-2 cursor-pointer hover:bg-slate-50';
+        el.innerHTML = `<div class="flex justify-between items-start">
+                          <div>
+                            <div class="font-medium">${tx.description || tx.type}</div>
+                            <div class="text-xs text-slate-500">${shortDate(tx.date)}</div>
+                          </div>
+                          <div class="${tx.amount > 0 ? 'text-green-600' : 'text-red-600'} font-medium">${tx.amount>0?'+':''}${formatCurrency(Math.abs(tx.amount))}</div>
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1">${tx.note || ''}</div>`;
+        el.onclick = () => openTxDetail(tx);
+        container.appendChild(el);
+      });
+    }
+
+    function openTxDetail(tx) {
+      document.getElementById('txDetailTitle').textContent = tx.description || tx.type;
+      document.getElementById('txDetailBody').innerHTML = `
+        <div><strong>Amount:</strong> ${formatCurrency(tx.amount)}</div>
+        <div><strong>Type:</strong> ${tx.type}</div>
+        <div><strong>Date:</strong> ${shortDate(tx.date)}</div>
+        <div><strong>To / Details:</strong> ${tx.to || '—'}</div>
+        <div><strong>Note:</strong> ${tx.note || '—'}</div>
+        <div><strong>Status:</strong> ${tx.status || 'done'}</div>
+      `;
+      document.getElementById('txDetailModal').classList.remove('hidden');
+    }
+    function closeTxDetail() { document.getElementById('txDetailModal').classList.add('hidden'); }
+
+    function clearNotifs() {
+      user.notifications = [];
+      saveUser(user);
+      renderNotifs();
+      updateNotifBadge();
+    }
+/* -------------------------
        ACTIONS: deposit/send/withdraw
        ------------------------- */
     function requirePinAndOpen(action) {
@@ -346,44 +431,207 @@ Data model & persistence
       closeActionModal();
       showToast('Transaction completed');
     }
+    /* -------------------------
+       Money Action flow: open modal -> proceed -> pin -> process tx
+       ------------------------- */
+    function startAction(kind) {
+      pendingAction = kind;
+      pendingActionPayload = null;
+      // open respective modal
+      closeAllActionModals();
+      if (kind === 'bank') document.getElementById('bankModal').classList.remove('hidden');
+      else if (kind === 'paypal') document.getElementById('paypalModal').classList.remove('hidden');
+      else if (kind === 'agent') document.getElementById('agentModal').classList.remove('hidden');
+      else if (kind === 'mpesa') document.getElementById('mpesaModal').classList.remove('hidden');
+      else if (kind === 'bills') document.getElementById('billsModal').classList.remove('hidden');
+      else if (kind === 'send') document.getElementById('sendModal').classList.remove('hidden');
+      else if (kind === 'withdraw') document.getElementById('withdrawModal').classList.remove('hidden');
+      else if (kind === 'deposit') document.getElementById('actionModal').classList.remove('hidden');
+    }
+
+    function closeAllActionModals() {
+      ['bankModal','paypalModal','agentModal','mpesaModal','billsModal','sendModal','withdrawModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+    }
+
+    // Called when user presses "Proceed" in a action modal
+    function openPinFromModal(kind) {
+      // collect form data based on kind
+      let payload = { kind, description: '' };
+      if (kind === 'bank') {
+        payload.bank = document.getElementById('bank_name').value.trim();
+        payload.account = document.getElementById('bank_account').value.trim();
+        payload.bank_code = document.getElementById('bank_code').value.trim();
+        payload.amount = Number(document.getElementById('bank_amount').value || 0);
+        payload.note = document.getElementById('bank_note').value.trim();
+        payload.description = `Bank transfer to ${payload.bank} ${payload.account}`;
+      }
+      if (kind === 'paypal') {
+        payload.email = document.getElementById('paypal_email').value.trim();
+        payload.amount = Number(document.getElementById('paypal_amount').value || 0);
+        payload.note = document.getElementById('paypal_note').value.trim();
+        payload.description = `PayPal transfer to ${payload.email}`;
+      }
+      if (kind === 'agent') {
+        const sel = document.getElementById('agent_select').value;
+        payload.agent = sel ? sel.split('|')[0] : '';
+        payload.agentName = sel ? sel.split('|')[1] : '';
+        payload.amount = Number(document.getElementById('agent_amount').value || 0);
+        payload.recipient = document.getElementById('agent_name').value.trim();
+        payload.description = `Withdraw at agent ${payload.agent} ${payload.agentName}`;
+      }
+      if (kind === 'mpesa') {
+        payload.business = document.getElementById('mpesa_biz').value.trim();
+        payload.ref = document.getElementById('mpesa_ref').value.trim();
+        payload.amount = Number(document.getElementById('mpesa_amount').value || 0);
+        payload.description = `Lipa na M-Pesa to ${payload.business}`;
+      }
+      if (kind === 'bills') {
+        payload.billType = document.getElementById('bill_type').value;
+        payload.ref = document.getElementById('bill_ref').value.trim();
+        payload.amount = Number(document.getElementById('bill_amount').value || 0);
+        payload.description = `Bill payment: ${payload.billType}`;
+      }
+      // send (quick) modal
+      if (kind === 'send') {
+        payload.recipient = document.getElementById('send_recipient').value.trim();
+        payload.amount = Number(document.getElementById('send_amount').value || 0);
+        payload.note = document.getElementById('send_note').value.trim();
+        payload.description = `Send to ${payload.recipient}`;
+      }
+      // withdraw (quick) modal
+      if (kind === 'withdraw') {
+        payload.target = document.getElementById('withdraw_target').value.trim();
+        payload.amount = Number(document.getElementById('withdraw_amount').value || 0);
+        payload.note = document.getElementById('withdraw_note').value.trim();
+        payload.description = `Withdraw to ${payload.target}`;
+      }
+
+      // basic validation
+      if (!payload.amount || payload.amount <= 0) { alert('Enter valid amount'); return; }
+      // stash and show PIN modal
+      pendingActionPayload = payload;
+      closeAllActionModals();
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinMsg').classList.add('hidden');
+      document.getElementById('pinModal').classList.remove('hidden');
+    }
+
+    function cancelPin() {
+      document.getElementById('pinModal').classList.add('hidden');
+      pendingAction = null;
+      pendingActionPayload = null;
+    }
+
+    function verifyPin() {
+      const v = (document.getElementById('pinInput').value || '').trim();
+      if (!v) { showPinMsg('Enter PIN'); return; }
+      if (v !== (user.code || '')) { showPinMsg('Incorrect PIN'); return; }
+
+      // PIN ok -> process transaction
+      document.getElementById('pinModal').classList.add('hidden');
+      processPendingAction();
+    }
+
+    function showPinMsg(m) {
+      const el = document.getElementById('pinMsg');
+      el.textContent = m;
+      el.classList.remove('hidden');
+      document.getElementById('pinBox').style.animation = 'shake 300ms';
+      setTimeout(()=> document.getElementById('pinBox').style.animation = '', 300);
+    }
+
+    function processPendingAction() {
+      if (!pendingAction || !pendingActionPayload) return;
+      const kind = pendingAction;
+      const p = pendingActionPayload;
+      const acc = user.accounts.find(a => a.id === activeAccountId);
+      if (!acc) return;
+
+      // simulate different flows; STK mock shows a short loader
+      if (kind === 'mpesa') {
+        // show simple loader in modal style
+        showToast('Sending STK push... (mock)');
+        setTimeout(() => finalizeTx(-p.amount, p, 'mpesa'), 1400);
+      } else {
+        // immediate process
+        finalizeTx(-p.amount, p, kind);
+      }
+    }
+
+    function finalizeTx(amountSigned, payload, kind) {
+      const acc = user.accounts.find(a => a.id === activeAccountId);
+      if (!acc) return;
+      const amt = Math.abs(Number(payload.amount || 0));
+      if (acc.balance < amt) { alert('Insufficient balance'); pendingAction = null; pendingActionPayload = null; return; }
+
+      // create tx
+      acc.balance = Math.round((acc.balance - amt) * 100) / 100;
+      let txType = kind;
+      if (kind === 'mpesa') txType = 'mpesa';
+      else if (kind === 'agent' || kind === 'withdraw') txType = 'withdraw';
+      else if (kind === 'bills') txType = 'bill';
+      else if (kind === 'bank') txType = 'bank';
+      else if (kind === 'paypal') txType = 'paypal';
+      else if (kind === 'send') txType = 'send';
+
+      const tx = {
+        id: genId(),
+        type: txType,
+        description: payload.description || kind,
+        amount: -amt,
+        note: payload.note || payload.ref || '',
+        to: payload.email || payload.account || payload.agent || payload.business || payload.ref || payload.recipient || payload.target || '',
+        date: now(),
+        status: 'done'
+      };
+      acc.transactions = acc.transactions || [];
+      acc.transactions.push(tx);
+
+      // create notification (incoming/outgoing)
+      const notifText = (() => {
+        if (kind === 'mpesa') return `M-Pesa payment of ${formatCurrency(amt)} initiated (mock)`;
+        if (kind === 'agent' || kind === 'withdraw') return `Withdrawal ${formatCurrency(amt)} requested at ${payload.agentName || payload.agent || payload.target}`;
+        if (kind === 'bank') return `Bank transfer ${formatCurrency(amt)} to ${payload.bank} ${payload.account}`;
+        if (kind === 'paypal') return `PayPal transfer ${formatCurrency(amt)} to ${payload.email}`;
+        if (kind === 'bills') return `Bill paid ${formatCurrency(amt)} — ${payload.billType}`;
+        if (kind === 'send') return `Sent ${formatCurrency(amt)} to ${payload.recipient}`;
+        return `Transaction: ${formatCurrency(amt)}`;
+      })();
+
+      user.notifications = user.notifications || [];
+      user.notifications.push({ id: genId(), text: notifText, read: false, date: now() });
+
+      saveUser(user);
+      setActiveAccount(acc.id);
+      renderNotifs();
+      updateNotifBadge();
+
+      // reset pending
+      pendingAction = null; pendingActionPayload = null;
+
+      showToast('Transaction successful');
+    }
 
     /* -------------------------
-       Small toast
+       Small UI helpers & toast
        ------------------------- */
     function showToast(msg) {
+      const wrap = document.getElementById('toastWrap');
       const el = document.createElement('div');
-      el.className = 'fixed bottom-6 right-6 bg-black text-white px-4 py-2 rounded shadow';
+      el.className = 'bg-black text-white px-4 py-2 rounded shadow mb-2';
       el.textContent = msg;
-      document.body.appendChild(el);
+      wrap.appendChild(el);
       setTimeout(()=> el.classList.add('opacity-0'), 2000);
       setTimeout(()=> el.remove(), 2600);
     }
 
-    /* -------------------------
-       Misc UI actions
-       ------------------------- */
-    function openProfile() {
-      const d = document.getElementById('profileDrawer');
-      d.classList.remove('hidden');
-      document.getElementById('profileName').textContent = user.name;
-      document.getElementById('profilePhone').textContent = user.phone;
-    }
-
-    function closeProfile() {
-      const d = document.getElementById('profileDrawer');
-      d.classList.add('hidden');
-      document.getElementById('profilePhone').textContent = user.phone;
-    }
-    function showChangeCode() {
-      const newPin = prompt('Enter new PIN (4-6 digits):');
-      if (!newPin) return;
-      user.code = newPin;
-      saveUser(user);
-      showToast('PIN updated');
-    }
-    function openSupport() { alert('Support: demo@moneyapp.example'); }
-    function openQrMock() { alert('QR pay (mock) — paste recipient phone to Send'); }
-    function openBills() { alert('Bills module (coming soon)'); }
+    function openQrMock() { startAction('mpesa'); }
+    function openBills() { startAction('bills'); }
+    function openSupport() { alert('Support: demo@moneyapp.example'); } // can replace with modal later
+    function openSettings() { alert('Settings (demo)'); }
 
     function logout() {
       localStorage.removeItem(CURRENT_USER_KEY);
@@ -391,112 +639,31 @@ Data model & persistence
     }
 
     /* -------------------------
-       Mobile sidebar toggle
+       seed sample notifications if none
        ------------------------- */
-    document.getElementById('mobileToggle').addEventListener('click', () => {
-      const s = document.getElementById('sidebar');
-      s.classList.toggle('hidden');
-    });
+    if (!user.notifications) user.notifications = [];
+    if (user.notifications.length === 0) {
+      user.notifications.push({ id: genId(), text: 'You received KES 500 from Alice', read: false, important: false, date: now() });
+      user.notifications.push({ id: genId(), text: 'Security: New device login detected', read: false, important: true, date: now() });
+      saveUser(user);
+    }
+    updateNotifBadge();
+    renderNotifs();
 
     /* -------------------------
-       Simple helpers for settings etc
+       Expose some functions globally for buttons
        ------------------------- */
-    function openSettings() { alert('Settings (demo)'); }
-
-    /* -------------------------
-       small UX helpers: rename from UI events
-       ------------------------- */
-    window.showAddAccount = showAddAccount;
-    window.renameAccount = renameAccount;
-    window.removeAccount = removeAccount;
-    window.openDeposit = openDeposit;
-    window.openQrMock = openQrMock;
-    window.openBills = openBills;
-    window.openSupport = openSupport;
-    window.logout = logout;
-    window.showChangeCode = showChangeCode;
-    window.openProfile = openProfile;
-    window.closeAcctModal = closeAcctModal;
-    window.saveAccount = saveAccount;
-    window.openActionModal = openActionModal;
-    window.closeActionModal = closeActionModal;
-    window.requirePinAndOpen = requirePinAndOpen;
-
-    // Expose confirmAction for button
-    window.confirmAction = confirmAction;
-
-    // Transaction deletion functions
-    let transactionToDelete = null;
-
-    function renderTransaction(tx, index) {
-      const amount = tx.type === 'withdraw' ? `-KES ${tx.amount}` : `+KES ${tx.amount}`;
-      const amountColor = tx.type === 'withdraw' ? 'text-red-600' : 'text-green-600';
-      return `
-        <div class="flex items-center justify-between p-2 hover:bg-slate-50 rounded" id="tx-${index}">
-          <div>
-            <div class="font-medium">${tx.recipient || 'Cash Withdrawal'}</div>
-            <div class="text-xs text-slate-500">${tx.note || ''}</div>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="${amountColor} font-medium">${amount}</div>
-            <button onclick="showDeleteTransaction(${index})" class="text-red-600 opacity-0 hover:opacity-100 transition-opacity">
-              🗑️
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    function showDeleteTransaction(index) {
-      transactionToDelete = index;
-      document.getElementById('deleteTransactionModal').classList.remove('hidden');
-    }
-
-    function closeDeleteTransactionModal() {
-      document.getElementById('deleteTransactionModal').classList.add('hidden');
-      transactionToDelete = null;
-    }
-
-    function confirmDeleteTransaction() {
-      if (transactionToDelete === null) return;
-      
-      // Get current user's transactions
-      const userData = JSON.parse(localStorage.getItem(USERS_PREFIX + currentUserPhone));
-      const transactions = userData.transactions || [];
-      
-      // Remove the transaction
-      transactions.splice(transactionToDelete, 1);
-      
-      // Update storage
-      userData.transactions = transactions;
-      localStorage.setItem(USERS_PREFIX + currentUserPhone, JSON.stringify(userData));
-      
-      // Update UI
-      updateTransactions();
-      closeDeleteTransactionModal();
-    }
-
-    function updateTransactions() {
-      const txList = document.getElementById('txList');
-      const userData = JSON.parse(localStorage.getItem(USERS_PREFIX + currentUserPhone));
-      const transactions = userData.transactions || [];
-
-      if (transactions.length === 0) {
-        txList.innerHTML = '<p class="text-slate-500">No transactions yet.</p>';
-        return;
-      }
-
-      txList.innerHTML = transactions
-        .slice()
-        .reverse()
-        .slice(0, 20)
-        .map((tx, i) => renderTransaction(tx, i))
-        .join('');
-    }
-
-    // Expose functions to window
-    window.showDeleteTransaction = showDeleteTransaction;
-    window.closeDeleteTransactionModal = closeDeleteTransactionModal;
-    window.confirmDeleteTransaction = confirmDeleteTransaction;
-
-    // init done
+  window.startAction = startAction;
+  window.openPinFromModal = openPinFromModal;
+  window.closeAllActionModals = closeAllActionModals;
+  window.verifyPin = verifyPin;
+  window.cancelPin = cancelPin;
+  window.closeTxDetail = closeTxDetail;
+  window.showAddAccount = showAddAccount;
+  window.saveAccount = saveAccount;
+  window.closeAcctModal = closeAcctModal;
+  window.renameAccount = renameAccount;
+  window.removeAccount = removeAccount;
+  window.showChangePinModal = showChangePinModal;
+  window.closeChangePinModal = closeChangePinModal;
+  window.saveNewPin = saveNewPin;
