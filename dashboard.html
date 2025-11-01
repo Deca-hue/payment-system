@@ -180,6 +180,129 @@
         </div>
         <div id="accountsList" class="space-y-2 max-h-56 overflow-auto pr-1"></div>
       </div>
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="hidden fixed inset-0 z-80 modal-backdrop flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <h3 class="text-xl font-semibold mb-4">Settings</h3>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Left Column -->
+      <div>
+        <!-- Profile Section -->
+        <div class="mb-6">
+          <h4 class="text-sm font-semibold mb-3 text-slate-700">Profile</h4>
+          
+          <!-- Avatar -->
+          <div class="mb-4">
+            <label class="text-xs text-slate-600">Avatar</label>
+            <div class="flex items-center gap-3 mt-1">
+              <img id="avatarPreview" src="" alt="avatar" class="w-12 h-12 rounded-full object-cover border bg-slate-50" />
+              <div>
+                <input id="avatarInput" type="file" accept="image/*" class="text-sm" />
+                <p class="text-xs text-slate-400 mt-1">Small image recommended (max ~200KB)</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-600">Full Name</label>
+              <input id="set_name" class="w-full border p-2 rounded mt-1" />
+            </div>
+
+            <div>
+              <label class="text-xs text-slate-600">Phone Number</label>
+              <input id="set_phone" class="w-full border p-2 rounded mt-1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Section -->
+        <div>
+          <h4 class="text-sm font-semibold mb-3 text-slate-700">Security</h4>
+          
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-600">New PIN (4–6 digits)</label>
+              <input id="set_pin" type="password" maxlength="6" class="w-full border p-2 rounded mt-1" placeholder="••••" />
+            </div>
+
+
+<!-- Security recovery question (add to Security section) -->
+<div class="mt-3">
+  <label class="text-xs text-slate-600">Recovery Question</label>
+  <select id="recovery_q" class="w-full border p-2 rounded mb-2">
+    <option value="">— choose a question —</option>
+    <option value="mother_maiden">What is your mother's maiden name?</option>
+    <option value="first_school">What was your first school's name?</option>
+    <option value="fav_teacher">What is your favorite teacher's name?</option>
+  </select>
+  <input id="recovery_a" class="w-full border p-2 rounded" placeholder="Answer (keep secret)" />
+  <p class="text-xs text-slate-400 mt-1">Use this to recover/reset PIN if locked.</p>
+  </div>
+     </div>
+       </div>
+         </div>
+
+      <!-- Right Column -->
+      <div>
+        <!-- Appearance Section -->
+        <div class="mb-6">
+          <h4 class="text-sm font-semibold mb-3 text-slate-700">Appearance</h4>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-slate-600 block mb-2">Theme</label>
+              <select id="themeSelect" class="w-full border p-2 rounded text-sm">
+                <option value="default">Default</option>
+                <option value="purple">Purple</option>
+                <option value="blue">Blue</option>
+                <option value="dark">Dark</option>
+                <option value="amoled">AMOLED</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <label class="text-xs text-slate-600">Dark Mode</label>
+              <button id="darkToggle" class="px-3 py-1 bg-slate-200 rounded-full text-xs">
+                Off
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div>
+          <h4 class="text-sm font-semibold mb-3 text-red-600">Danger Zone</h4>
+          <button onclick="openDeleteAccountConfirm()"
+            class="w-full bg-red-600/90 hover:bg-red-600 text-white py-2 rounded shadow transition">
+            Delete Account
+          </button>
+          <p class="text-xs text-slate-400 mt-2">This action cannot be undone.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Buttons -->
+    <div class="flex gap-3 mt-6 pt-4 border-t">
+      <button class="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition" onclick="saveSettings()">Save Changes</button>
+      <button class="flex-1 py-2 rounded border hover:bg-slate-50 transition" onclick="closeSettings()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT CONFIRM -->
+<div id="deleteAccountModal" class="hidden fixed inset-0 z-90 modal-backdrop flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+    <h3 class="text-lg font-semibold mb-3">Delete Account?</h3>
+    <p class="text-sm text-slate-600 mb-3">This action cannot be undone.</p>
+
+    <div class="flex gap-2">
+      <button class="flex-1 bg-red-600 text-white py-2 rounded" onclick="confirmDeleteAccount()">Delete</button>
+      <button class="flex-1 py-2 rounded border" onclick="closeDeleteAccountConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
 
       <div class="mt-auto">
         <button class="w-full text-left px-3 py-2 rounded hover:bg-slate-100" onclick="openSettings()">⚙️ Settings</button>
@@ -241,7 +364,10 @@
               <div class="text-sm font-semibold">Notifications</div>
               <button onclick="clearNotifs()" class="text-xs text-indigo-600">Clear</button>
             </div>
-            <div id="notificationsList" class="text-sm text-slate-600">No new notifications</div>
+            <div class="relative">
+              <div id="notificationsList" class="text-sm text-slate-600 max-h-[60px] overflow-y-auto scrollbar-thin pr-1 hover:max-h-[120px] transition-all duration-300">No new notifications</div>
+              <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+            </div>
 
             <hr class="my-2">
             <div class="text-sm font-semibold">Shortcuts</div>
@@ -508,7 +634,8 @@
       </div>
     </div>
   </div>
-
+ 
   <script src="dashboard.js"></script>
+ 
 </body>
 </html>

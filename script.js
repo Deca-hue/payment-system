@@ -1,3 +1,17 @@
+const CURRENT_USER_KEY = 'currentUser';
+const USERS_PREFIX = 'user_';
+
+// Load the user based on the phone number typed in the login field
+let user = null;
+
+function loadLoginUser(phone) {
+    // Always use USERS_PREFIX constant
+    const raw = localStorage.getItem(USERS_PREFIX + phone);
+    if (!raw) return null;
+    return JSON.parse(raw);
+}
+
+
 function toggleSection() {
   const login = document.getElementById('loginSection');
   const register = document.getElementById('registerSection');
@@ -16,13 +30,14 @@ function registerUser() {
     return;
   }
 
-  if (localStorage.getItem(phone)) {
+  if (localStorage.getItem(USERS_PREFIX + phone)) {
     showRegisterMessage('Account already exists. Please login.', true);
     return;
   }
 
   const user = { name, phone, code, balance: 1000, transactions: [] };
-  localStorage.setItem(phone, JSON.stringify(user));
+  // store under the USERS_PREFIX so loadLoginUser can find it
+  localStorage.setItem(USERS_PREFIX + phone, JSON.stringify(user));
 
   showRegisterMessage('Account created successfully ✅');
   setTimeout(() => {
@@ -38,28 +53,29 @@ function showRegisterMessage(msg, error = false) {
 
 // ✅ Login logic
 function loginUser() {
+  // login form uses ids `loginPhone` and `loginCode` in index.html
   const phone = document.getElementById('loginPhone').value.trim();
   const code = document.getElementById('loginCode').value.trim();
 
   if (!phone || !code) {
-    showLoginMessage('Enter phone number and special code');
+    showLoginMessage('Enter phone and special code');
     return;
   }
 
-  const data = localStorage.getItem(phone);
-  if (!data) {
-    alert('Account not found. Please create an account.');
-    showLoginMessage('Account does not exist. Register below.');
+  user = loadLoginUser(phone);
+
+  if (!user) {
+    showLoginMessage('Account not found. Please create an account first.');
     return;
   }
 
-  const user = JSON.parse(data);
   if (user.code !== code) {
     showLoginMessage('Invalid special code');
     return;
   }
 
-  localStorage.setItem('currentUser', phone);
+  // Successful login — store current user and go to dashboard
+  localStorage.setItem(CURRENT_USER_KEY, phone);
   window.location.href = 'dashboard.html';
 }
 
@@ -68,3 +84,128 @@ function showLoginMessage(msg) {
   el.textContent = msg;
 }
 
+
+/* ---------- FORGOT PIN FLOW UI ---------- */
+
+  // Set the question text
+  function openForgotPinModal() {
+    const phone = document.getElementById('loginPhone').value.trim();
+
+    if (!phone) {
+        alert("Enter your phone number first.");
+        return;
+    }
+
+    user = loadLoginUser(phone);
+
+    if (!user) {
+        alert("No account found with that phone number.");
+        return;
+    }
+
+    if (!user.recovery_q || !user.recovery_a || !user.recovery_a.trim()) {
+        alert("Recovery not set. Open Settings > Security to set a recovery question.");
+        return;
+    }
+
+    document.getElementById('fp_question_box').textContent =
+        "Question: " + recoveryQuestionLabel(user.recovery_q);
+
+    document.getElementById('fp_answer').value = "";
+    document.getElementById('forgotPinModal').classList.remove('hidden');
+}
+
+
+
+function closeForgotPinModal() {
+  document.getElementById('forgotPinModal').classList.add('hidden');
+}
+
+function openNewPinModal() {
+  document.getElementById('newPinModal').classList.remove('hidden');
+}
+
+function closeNewPinModal() {
+  document.getElementById('newPinModal').classList.add('hidden');
+}
+function recoveryQuestionLabel(key) {
+  switch (key) {
+    case "mother_maiden": return "What is your mother's maiden name?";
+    case "first_school": return "What was your first school's name?";
+    case "fav_teacher": return "What is your favorite teacher's name?";
+    default: return key;
+  }
+}
+
+function submitForgotPin() {
+  const ans = document.getElementById('fp_answer').value.trim();
+  if (!ans) {
+    alert("Enter your answer.");
+    return;
+  }
+  
+  // Ensure user and recovery answer exist and match
+  if (!user || !user.recovery_a || ans.toLowerCase() !== user.recovery_a.toLowerCase()) {
+    alert("Incorrect answer.");
+    return;
+  }
+
+  // Success → proceed to new PIN modal
+  closeForgotPinModal();
+  openNewPinModal();
+}
+
+function saveNewPin() {
+  const pin1 = document.getElementById('reset_newpin').value.trim();
+  const pin2 = document.getElementById('reset_newpin_confirm').value.trim();
+
+  if (pin1.length < 4 || pin1.length > 6) {
+    alert("PIN must be 4–6 digits.");
+    return;
+  }
+  if (pin1 !== pin2) {
+    alert("PINs do not match.");
+    return;
+  }
+
+  // Save new PIN locally (index.html doesn't have dashboard helpers)
+  user.code = pin1;
+  // clear any lock info if present
+  user.pinAttempts = 0;
+  user.pinLockedUntil = null;
+  try {
+    localStorage.setItem(USERS_PREFIX + user.phone, JSON.stringify(user));
+  } catch (e) {
+    console.error('Failed saving user:', e);
+  }
+
+  closeNewPinModal();
+  showToast("PIN reset successfully");
+}
+
+// lightweight toast for the login page (small copy of dashboard toast)
+function showToast(msg) {
+  // create a small temporary element centered at bottom
+  const existing = document.getElementById('login_toast_wrap');
+  let wrap = existing;
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'login_toast_wrap';
+    wrap.style.position = 'fixed';
+    wrap.style.left = '50%';
+    wrap.style.transform = 'translateX(-50%)';
+    wrap.style.bottom = '20px';
+    wrap.style.zIndex = 9999;
+    document.body.appendChild(wrap);
+  }
+  const el = document.createElement('div');
+  el.style.background = 'rgba(0,0,0,0.85)';
+  el.style.color = 'white';
+  el.style.padding = '8px 12px';
+  el.style.borderRadius = '6px';
+  el.style.marginTop = '6px';
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.style.opacity = '0.0', 2000);
+  setTimeout(() => el.remove(), 2500);
+}

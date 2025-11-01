@@ -19,6 +19,12 @@
         <button onclick="toggleSection()" class="text-indigo-600 underline">Create Account</button>
       </p>
       <p id="loginMessage" class="text-center mt-2 text-sm text-red-500"></p>
+      <div class="text-center mt-3">
+  <button onclick="openForgotPinModal()" class="text-sm text-indigo-600 hover:underline">
+    Forgot PIN?
+  </button>
+</div>
+
     </div>
 
     <!-- REGISTER SECTION (Hidden by default) -->
@@ -36,6 +42,53 @@
       <p id="registerMessage" class="text-center mt-2 text-sm text-green-600"></p>
     </div>
   </div>
+  
+<!-- FORGOT PIN MODAL -->
+<div id="forgotPinModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+    
+    <h3 class="text-lg font-semibold mb-2">Reset PIN</h3>
+    <p class="text-sm text-slate-500 mb-4">
+      Answer your recovery question to reset your PIN.
+    </p>
+
+    <div id="fp_question_box" class="text-sm font-medium mb-3 text-slate-700">
+      Loading question...
+    </div>
+
+    <input id="fp_answer" class="w-full border p-2 rounded mb-4" placeholder="Your answer" />
+
+    <div class="flex gap-2">
+      <button onclick="submitForgotPin()" class="flex-1 bg-indigo-600 text-white py-2 rounded">
+        Continue
+      </button>
+      <button onclick="closeForgotPinModal()" class="flex-1 border py-2 rounded">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PIN MODAL (Step 2 after correct answer) -->
+<div id="newPinModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+
+    <h3 class="text-lg font-semibold mb-2">Create New PIN</h3>
+    <p class="text-sm text-slate-500 mb-4">Enter a new 4–6 digit PIN.</p>
+
+    <input id="reset_newpin" maxlength="6" type="password" class="w-full border p-2 rounded mb-3" placeholder="New PIN" />
+    <input id="reset_newpin_confirm" maxlength="6" type="password" class="w-full border p-2 rounded mb-4" placeholder="Confirm PIN" />
+
+    <div class="flex gap-2">
+      <button onclick="saveNewPin()" class="flex-1 bg-green-600 text-white py-2 rounded">
+        Save PIN
+      </button>
+      <button onclick="closeNewPinModal()" class="flex-1 border py-2 rounded">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
 
   <script src="script.js"></script>
 </body>

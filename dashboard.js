@@ -121,7 +121,389 @@
         });
       updateNotifBadge();
 
-    
+    /* -------------------------
+   SETTINGS MODAL LOGIC
+------------------------- */
+function openSettings() {
+  // Fill current data
+  document.getElementById('set_name').value = user.name;
+  document.getElementById('set_phone').value = user.phone;
+  document.getElementById('set_pin').value = '';
+
+  document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.add('hidden');
+}
+
+function saveSettings() {
+  const newName = document.getElementById('set_name').value.trim();
+  const newPhone = document.getElementById('set_phone').value.trim();
+  const newPin = document.getElementById('set_pin').value.trim();
+
+  if (!newName || !newPhone) {
+    showToast("Name and Phone cannot be empty");
+    return;
+  }
+
+  // Update user profile
+  user.name = newName;
+  user.phone = newPhone;
+
+  // Update PIN if entered
+  if (newPin && newPin.length >= 4) {
+    user.code = newPin;
+    showToast("PIN updated successfully");
+  }
+
+  saveUser(user);
+  init(); // refresh UI
+  closeSettings();
+  showToast("Settings saved");
+}
+
+/* -------------------------
+   DARK MODE TOGGLE (simple mock)
+------------------------- */
+
+let darkOn = false;
+
+document.getElementById('darkToggle').addEventListener('click', () => {
+  darkOn = !darkOn;
+  document.getElementById('darkToggle').textContent = darkOn ? 'On' : 'Off';
+
+  if (darkOn) {
+    document.body.classList.add('bg-slate-900', 'text-white');
+  } else {
+    document.body.classList.remove('bg-slate-900', 'text-white');
+  }
+});
+
+/* -------------------------
+   DELETE ACCOUNT LOGIC
+------------------------- */
+
+function openDeleteAccountConfirm() {
+  document.getElementById('deleteAccountModal').classList.remove('hidden');
+}
+
+function closeDeleteAccountConfirm() {
+  document.getElementById('deleteAccountModal').classList.add('hidden');
+}
+
+function confirmDeleteAccount() {
+  localStorage.removeItem(USERS_PREFIX + currentUserPhone);
+  localStorage.removeItem(CURRENT_USER_KEY);
+  window.location.href = "index.html";
+}
+/* -------------------------
+  USER ENHANCEMENTS MODULE
+  - Avatar upload (base64)
+  - Security log
+  - PIN lockout with attempts
+  - Recovery question PIN reset
+  - Edit/remove notifications
+  - Theme selector & persistence
+  - Small transition helper
+------------------------- */
+
+const PIN_MAX_ATTEMPTS = 3;
+const PIN_LOCK_MINUTES = 10; // lockout duration
+
+/* ---------- AVATAR UPLOAD ---------- */
+const avatarInput = document.getElementById('avatarInput');
+const avatarPreview = document.getElementById('avatarPreview');
+if (avatarInput) {
+  avatarInput.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    // limit file size ~300KB to keep base64 small
+    if (f.size > 350 * 1024) {
+      alert('Please choose a smaller image (max 350KB)');
+      return;
+    }
+    const b64 = await fileToBase64(f);
+    // store on user object
+    user.avatar = b64;
+    saveUser(user);
+    avatarPreview.src = b64;
+    showToast('Avatar updated');
+  });
+}
+// show existing avatar when settings open - ensure openSettings fills preview:
+const origOpenSettings = window.openSettings || openSettings;
+function openSettings_withAvatar() {
+  origOpenSettings();
+  if (user.avatar) avatarPreview.src = user.avatar;
+  else avatarPreview.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"></svg>';
+  // populate recovery fields
+  document.getElementById('recovery_q').value = user.recovery_q || '';
+  document.getElementById('recovery_a').value = user.recovery_a || '';
+  // theme select
+  const currentTheme = localStorage.getItem('ui_theme') || 'default';
+  const themeEl = document.getElementById('themeSelect'); if (themeEl) themeEl.value = currentTheme;
+}
+window.openSettings = openSettings_withAvatar;
+
+/* utility */
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+/* ---------- SECURITY LOG on login ---------- */
+/* call this from your login routine (after successful login) OR we attach here */
+function recordLoginEvent() {
+  user.securityLog = user.securityLog || [];
+  const ua = navigator.userAgent || 'unknown';
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  const ipHint = 'local'; // no external IP fetch — keep privacy, could call geo API
+  const entry = { id: genId(), ts: now(), ua, tz, ipHint };
+  user.securityLog.push(entry);
+  // keep last 10 entries
+  if (user.securityLog.length > 10) user.securityLog = user.securityLog.slice(-10);
+  saveUser(user);
+}
+/* record on init (login time) */
+recordLoginEvent();
+
+/* ---------- PIN attempts & lockout ---------- */
+function getLockInfo() {
+  user.pinAttempts = user.pinAttempts || 0;
+  user.pinLockedUntil = user.pinLockedUntil || null;
+  saveUser(user);
+}
+getLockInfo();
+
+function isPinLocked() {
+  if (!user.pinLockedUntil) return false;
+  const until = new Date(user.pinLockedUntil);
+  return new Date() < until;
+}
+
+function registerFailedPinAttempt() {
+  user.pinAttempts = (user.pinAttempts || 0) + 1;
+  if (user.pinAttempts >= PIN_MAX_ATTEMPTS) {
+    const until = new Date(Date.now() + PIN_LOCK_MINUTES * 60000);
+    user.pinLockedUntil = until.toISOString();
+    user.pinAttempts = 0; // reset attempts after lock
+    showToast(`Too many attempts — PIN locked until ${until.toLocaleTimeString()}`);
+  } else {
+    showToast(`Incorrect PIN — ${PIN_MAX_ATTEMPTS - user.pinAttempts} attempts left`);
+  }
+  saveUser(user);
+}
+
+function resetPinAttempts() {
+  user.pinAttempts = 0;
+  user.pinLockedUntil = null;
+  saveUser(user);
+}
+
+/* modify verifyPin to consider lockout — wrap the original verifyPin */
+const origVerifyPin = window.verifyPin || verifyPin;
+function verifyPin_withLock() {
+  if (isPinLocked()) {
+    const until = new Date(user.pinLockedUntil);
+    alert(`PIN locked until ${until.toLocaleString()}`);
+    return;
+  }
+  const v = (document.getElementById('pinInput').value || '').trim();
+  if (!v) { showPinMsg('Enter PIN'); return; }
+  if (v !== (user.code || '')) {
+    registerFailedPinAttempt();
+    showPinMsg('Incorrect PIN');
+    return;
+  }
+  // success
+  resetPinAttempts();
+  // proceed with original action flow
+  origVerifyPin();
+}
+window.verifyPin = verifyPin_withLock;
+
+/* ---------- PIN Recovery via security question ---------- */
+function attemptPinRecovery() {
+  const q = user.recovery_q;
+  if (!q) { alert('No recovery question set. Go to Settings to set one.'); return; }
+  const answer = prompt(`Recovery question: ${q}\nEnter the answer:`)?.trim();
+  if (!answer) return;
+  if (answer === user.recovery_a) {
+    const newPin = prompt('Enter new PIN (4-6 digits):')?.trim();
+    if (!newPin || newPin.length < 4) { alert('Invalid PIN'); return; }
+    user.code = newPin;
+    resetPinAttempts();
+    saveUser(user);
+    showToast('PIN reset successfully');
+  } else {
+    alert('Incorrect answer');
+  }
+}
+window.attemptPinRecovery = attemptPinRecovery;
+
+/* When saving settings, also store recovery values and avatar (modify saveSettings) */
+/* If you used my earlier saveSettings, replace its body with this call: */
+function saveSettings() {
+  const newName = document.getElementById('set_name').value.trim();
+  const newPhone = document.getElementById('set_phone').value.trim();
+  const newPin = document.getElementById('set_pin').value.trim();
+  const recQ = document.getElementById('recovery_q').value;
+  const recA = document.getElementById('recovery_a').value.trim();
+  const theme = document.getElementById('themeSelect')?.value || 'default';
+
+  if (!newName || !newPhone) {
+    showToast("Name and Phone cannot be empty");
+    return;
+  }
+
+  // ✅ Save basic info
+  user.name = newName;
+  user.phone = newPhone;
+
+  // ✅ Save PIN if given
+  if (newPin && newPin.length >= 4) {
+    user.code = newPin;
+    showToast("PIN updated successfully");
+  }
+
+  // ✅ Save recovery question & answer
+  // VERY IMPORTANT — this is what was missing before
+  if (recQ && recA) {
+    user.recovery_q = recQ;
+    user.recovery_a = recA;
+  }
+
+  // ✅ Save theme
+  localStorage.setItem('ui_theme', theme);
+  applyTheme(theme);
+
+  // ✅ Re-save entire user object
+  saveUser(user);
+
+  // ✅ Refresh UI after saving
+  init();
+  document.getElementById('settingsModal').classList.add('hidden');
+  showToast("Settings saved");
+}
+
+const saveSettings_enhanced = saveSettings;
+window.saveSettings = saveSettings_enhanced;
+
+/* ---------- Edit / Remove Notifications ---------- */
+function renderNotifs_withEdit() {
+  const listEl = document.getElementById('notificationsList');
+  if (!listEl) return;
+  if (!user.notifications || user.notifications.length === 0) {
+    listEl.textContent = 'No new notifications';
+    return;
+  }
+  listEl.innerHTML = '';
+  user.notifications.forEach(n => {
+    const row = document.createElement('div');
+    row.className = 'flex items-start justify-between gap-2 p-2 rounded hover:bg-slate-50';
+    const left = document.createElement('div');
+    left.innerHTML = `<div class="font-medium text-sm">${n.text}</div><div class="text-xs text-slate-400">${new Date(n.date||now()).toLocaleString()}</div>`;
+    const right = document.createElement('div');
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'text-xs text-indigo-600 mr-2';
+    viewBtn.textContent = 'View';
+    viewBtn.onclick = () => {
+      // if this notification relates to a tx id, try to find it
+      if (n.txId) {
+        // find tx in accounts
+        for (const a of user.accounts) {
+          const tx = (a.transactions||[]).find(t=>t.id===n.txId);
+          if (tx) { openTxDetail(tx); break; }
+        }
+      } else {
+        alert(n.text);
+      }
+    };
+    const delBtn = document.createElement('button');
+    delBtn.className = 'text-xs text-red-500';
+    delBtn.textContent = 'Delete';
+    delBtn.onclick = () => {
+      if (!confirm('Delete this notification?')) return;
+      user.notifications = user.notifications.filter(x=>x.id !== n.id);
+      saveUser(user);
+      renderNotifs_withEdit();
+      updateNotifBadge();
+    };
+    right.appendChild(viewBtn); right.appendChild(delBtn);
+    row.appendChild(left); row.appendChild(right);
+    listEl.appendChild(row);
+  });
+}
+// replace old renderNotifs usage
+window.renderNotifs = renderNotifs_withEdit;
+renderNotifs_withEdit();
+
+/* ---------- THEME SELECTOR & APPLY ---------- */
+function applyTheme(theme) {
+  document.body.classList.remove('theme-purple','theme-blue','theme-dark','theme-amoled');
+  switch(theme) {
+    case 'purple':
+      document.body.classList.add('theme-purple');
+      break;
+    case 'blue':
+      document.body.classList.add('theme-blue');
+      break;
+    case 'dark':
+      document.body.classList.add('theme-dark');
+      break;
+    case 'amoled':
+      document.body.classList.add('theme-amoled');
+      break;
+    default:
+      // default style - remove extra classes
+      break;
+  }
+  localStorage.setItem('ui_theme', theme);
+}
+/* small theme CSS appended via <style> injection for convenience */
+(function addThemeStyles(){
+  const s = document.createElement('style');
+  s.innerHTML = `
+  .theme-purple header { background: linear-gradient(90deg,#6d28d9,#7c3aed)!important; color:white;}
+  .theme-blue header { background: linear-gradient(90deg,#0ea5e9,#0369a1)!important; color:white;}
+  .theme-dark { background: #0b1220 !important; color: #e6eef8 !important; }
+  .theme-amoled { background: #000000 !important; color: #d0f0ff !important; }
+  `;
+  document.head.appendChild(s);
+})();
+applyTheme(localStorage.getItem('ui_theme') || 'default');
+
+/* ---------- Smooth transition helper (used by slides) ---------- */
+function simpleTransition(el, clsAdd, clsRemove) {
+  if (!el) return;
+  if (clsRemove) el.classList.remove(clsRemove);
+  if (clsAdd) el.classList.add(clsAdd);
+}
+window.simpleTransition = simpleTransition;
+
+/* ---------- expose additional functions globally ---------- */
+window.attemptPinRecovery = attemptPinRecovery;
+window.registerFailedPinAttempt = registerFailedPinAttempt;
+window.resetPinAttempts = resetPinAttempts;
+window.applyTheme = applyTheme;
+window.openSettings = window.openSettings || openSettings_withAvatar;
+
+/* -------------------------
+   EXPOSE SETTINGS FUNCTIONS
+------------------------- */
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.saveSettings = saveSettings;
+
+window.openDeleteAccountConfirm = openDeleteAccountConfirm;
+window.closeDeleteAccountConfirm = closeDeleteAccountConfirm;
+window.confirmDeleteAccount = confirmDeleteAccount;
+
       // Notification Dropdown logic
       function toggleNotifDropdown() {
         const dd = document.getElementById('notifDropdown');
@@ -342,6 +724,13 @@
       saveUser(user);
       renderNotifs();
       updateNotifBadge();
+      // also update/hide dropdown if open
+      const dd = document.getElementById('notifDropdown');
+      if (dd) {
+        dd.classList.add('hidden');
+      }
+      const list = document.getElementById('notifDropdownList');
+      if (list) list.innerHTML = '<div class="p-4 text-slate-400 text-center">No new notifications</div>';
     }
 /* -------------------------
        ACTIONS: deposit/send/withdraw
@@ -628,10 +1017,9 @@
       setTimeout(()=> el.remove(), 2600);
     }
 
-    function openQrMock() { startAction('mpesa'); }
-    function openBills() { startAction('bills'); }
-    function openSupport() { alert('Support: demo@moneyapp.example'); } // can replace with modal later
-    function openSettings() { alert('Settings (demo)'); }
+  function openQrMock() { startAction('mpesa'); }
+  function openBills() { startAction('bills'); }
+  function openSupport() { alert('Support: demo@moneyapp.example'); } // can replace with modal later
 
     function logout() {
       localStorage.removeItem(CURRENT_USER_KEY);
@@ -656,7 +1044,8 @@
   window.startAction = startAction;
   window.openPinFromModal = openPinFromModal;
   window.closeAllActionModals = closeAllActionModals;
-  window.verifyPin = verifyPin;
+  // keep any previously-wrapped verifyPin (lock wrapper) if present
+  window.verifyPin = window.verifyPin || verifyPin;
   window.cancelPin = cancelPin;
   window.closeTxDetail = closeTxDetail;
   window.showAddAccount = showAddAccount;
@@ -667,3 +1056,12 @@
   window.showChangePinModal = showChangePinModal;
   window.closeChangePinModal = closeChangePinModal;
   window.saveNewPin = saveNewPin;
+  window.clearNotifs = clearNotifs;
+  // expose settings & delete account functions
+  // preserve enhanced versions (avatar/recovery/theme) if already set
+  window.openSettings = window.openSettings || openSettings;
+  window.closeSettings = window.closeSettings || closeSettings;
+  window.saveSettings = window.saveSettings || saveSettings;
+  window.openDeleteAccountConfirm = openDeleteAccountConfirm;
+  window.closeDeleteAccountConfirm = closeDeleteAccountConfirm;
+  window.confirmDeleteAccount = confirmDeleteAccount;
