@@ -1041,6 +1041,36 @@ window.confirmDeleteAccount = confirmDeleteAccount;
     /* -------------------------
        Expose some functions globally for buttons
        ------------------------- */
+  // Mobile: toggle notification dropdown in a mobile-friendly way
+  function toggleNotifDropdownMobile() {
+    const dd = document.getElementById('notifDropdown');
+    if (!dd) return;
+    // If opening on small screens, pin it above the bottom nav and make it full-width
+    if (dd.classList.contains('hidden')) {
+      renderNotifDropdownList();
+      dd.style.position = 'fixed';
+      dd.style.left = '0';
+      dd.style.right = '0';
+      dd.style.bottom = '56px'; // sit above mobile nav
+      dd.style.top = 'auto';
+      dd.style.maxHeight = '40vh';
+      dd.style.minWidth = '100%';
+      dd.classList.remove('hidden');
+      setTimeout(() => document.addEventListener('mousedown', notifDropdownOutsideClick), 0);
+    } else {
+      dd.classList.add('hidden');
+      document.removeEventListener('mousedown', notifDropdownOutsideClick);
+      // cleanup any inline styles we set
+      dd.style.position = '';
+      dd.style.left = '';
+      dd.style.right = '';
+      dd.style.bottom = '';
+      dd.style.top = '';
+      dd.style.maxHeight = '';
+      dd.style.minWidth = '';
+    }
+  }
+
   window.startAction = startAction;
   window.openPinFromModal = openPinFromModal;
   window.closeAllActionModals = closeAllActionModals;

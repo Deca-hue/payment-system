@@ -164,7 +164,7 @@
     </div>
   </header>
 
-  <div class="flex h-[calc(100vh-64px)]">
+  <div class="flex flex-col md:flex-row h-[calc(100vh-64px)]">
     <!-- Sidebar -->
     <aside id="sidebar" class="hidden md:flex flex-col gap-4 p-4 w-72 bg-white/60 border-r">
       <div>
@@ -621,6 +621,26 @@
 
   <!-- small toast -->
   <div id="toastWrap" class="fixed bottom-6 right-6 z-90"></div>
+
+  <!-- Mobile bottom navigation (visible only on small screens) -->
+  <nav id="mobileNav" class="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden flex justify-around items-center p-2 z-60">
+    <button onclick="startAction('send')" class="flex flex-col items-center text-sm text-slate-700 p-1">
+      <span class="text-xl">📤</span>
+      <span class="mt-1 text-xs">Send</span>
+    </button>
+    <button onclick="startAction('withdraw')" class="flex flex-col items-center text-sm text-slate-700 p-1">
+      <span class="text-xl">💸</span>
+      <span class="mt-1 text-xs">Withdraw</span>
+    </button>
+    <button onclick="openSettings()" class="flex flex-col items-center text-sm text-slate-700 p-1">
+      <span class="text-xl">⚙️</span>
+      <span class="mt-1 text-xs">Settings</span>
+    </button>
+    <button id="mobileNotifBtn" onclick="toggleNotifDropdownMobile()" class="flex flex-col items-center text-sm text-slate-700 p-1">
+      <span class="text-xl">🔔</span>
+      <span class="mt-1 text-xs">Notifs</span>
+    </button>
+  </nav>
 
   <!-- Add Account Modal -->
   <div id="acctModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
