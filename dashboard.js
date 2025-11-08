@@ -120,6 +120,246 @@
           toggleNotifDropdown();
         });
       updateNotifBadge();
+/* -------------------------
+   MOBILE UI SYSTEM (settings, activity, drawer, bottom sheet)
+------------------------- */
+
+(function() {
+  /* Helpers to show/hide bottom sheet panels */
+  function showPanel(rootId, panelId) {
+    const root = document.getElementById(rootId);
+    const panel = document.getElementById(panelId);
+    if (!root || !panel) return;
+    root.classList.remove('hidden');
+    // force reflow then slide up
+    requestAnimationFrame(() => panel.classList.remove('translate-y-full', 'translate-x-full'));
+    // allow clicking backdrop to close
+    const backdrop = root.querySelector('div[id$="Backdrop"], div[id$="backdrop"], .absolute');
+    if (backdrop) backdrop.onclick = () => closePanel(rootId, panelId);
+  }
+  function closePanel(rootId, panelId) {
+    const root = document.getElementById(rootId);
+    const panel = document.getElementById(panelId);
+    if (!root || !panel) return;
+    // slide down/back
+    if (panelId.toLowerCase().includes('panel') && panel.classList.contains('translate-x-0')) {
+      // right drawer
+      panel.classList.add('translate-x-full');
+    } else {
+      panel.classList.add('translate-y-full');
+    }
+    // hide after transition
+    setTimeout(() => root.classList.add('hidden'), 300);
+  }
+
+  /* MOBILE SETTINGS */
+  window.openMobileSettings = function() {
+    // fill user info
+    document.getElementById('mobileSettingName').textContent = user.name || 'User';
+    document.getElementById('mobileSettingPhone').textContent = user.phone || '';
+    document.getElementById('mobileSettingAvatar').textContent = (user.name||'U').charAt(0).toUpperCase();
+    document.getElementById('mobileThemeSelect').value = localStorage.getItem('ui_theme') || 'default';
+    document.getElementById('mobileRecoveryQ').value = user.recovery_q || '';
+    document.getElementById('mobileRecoveryA').value = user.recovery_a || '';
+    showPanel('mobileSettingsSheet','mobileSettingsPanel');
+  };
+
+  window.closeMobileSettings = function() {
+    closePanel('mobileSettingsSheet','mobileSettingsPanel');
+  };
+
+  window.mobileSavePin = function() {
+    const v = (document.getElementById('mobileNewPin').value||'').trim();
+    if (!v || v.length < 4) { alert('Enter PIN 4-6 digits'); return; }
+    user.code = v;
+    saveUser(user);
+    showToast('Mobile PIN updated');
+    document.getElementById('mobileNewPin').value = '';
+  };
+
+  // Save mobile settings (theme & recovery) when closing
+  document.getElementById('mobileSettingsBackdrop').addEventListener('click', () => {
+    // persist theme & recovery
+    const theme = document.getElementById('mobileThemeSelect').value;
+    localStorage.setItem('ui_theme', theme);
+    applyTheme(theme);
+    user.recovery_q = document.getElementById('mobileRecoveryQ').value || '';
+    user.recovery_a = document.getElementById('mobileRecoveryA').value.trim() || '';
+    saveUser(user);
+    closeMobileSettings();
+  });
+
+  // mobile delete confirm (quick)
+  window.mobileDeleteAccountConfirm = function() {
+    const ok = confirm('Delete account? This cannot be undone.');
+    if (!ok) return;
+    // reuse your delete func
+    confirmDeleteAccount();
+  };
+
+  /* MOBILE ACTIVITY */
+  function createTxCard(tx) {
+    const el = document.createElement('div');
+    el.className = 'p-3 bg-white rounded-xl shadow-sm border flex items-start gap-3 transform transition-transform duration-150 hover:-translate-y-1';
+    const icon = document.createElement('div');
+    icon.className = 'w-12 h-12 rounded-lg flex items-center justify-center text-xl';
+    icon.textContent = tx.amount < 0 ? '🔻' : '🔺';
+    const body = document.createElement('div');
+    body.className = 'flex-1';
+    const title = document.createElement('div');
+    title.className = 'font-semibold text-sm';
+    title.textContent = tx.description || tx.type;
+    const meta = document.createElement('div');
+    meta.className = 'text-xs text-slate-400';
+    meta.textContent = shortDate(tx.date);
+    const amount = document.createElement('div');
+    amount.className = (tx.amount < 0 ? 'text-red-600' : 'text-green-600') + ' font-semibold';
+    amount.textContent = (tx.amount < 0 ? '-' : '+') + formatCurrency(Math.abs(tx.amount));
+    body.appendChild(title);
+    body.appendChild(meta);
+    el.appendChild(icon);
+    el.appendChild(body);
+    el.appendChild(amount);
+    el.onclick = () => openTxDetail(tx);
+    return el;
+  }
+
+  window.openMobileActivity = function() {
+    populateMobileActivity();
+    showPanel('mobileActivitySheet','mobileActivityPanel');
+  };
+
+  window.closeMobileActivity = function() {
+    closePanel('mobileActivitySheet','mobileActivityPanel');
+  };
+
+  window.refreshMobileActivity = function() {
+    populateMobileActivity(true);
+  };
+
+  function populateMobileActivity(animate) {
+    const list = document.getElementById('mobileActivityList');
+    list.innerHTML = '';
+    const acc = user.accounts.find(a=>a.id === activeAccountId);
+    if (!acc || !acc.transactions || acc.transactions.length === 0) {
+      const el = document.createElement('div');
+      el.className = 'p-4 text-slate-500 text-center';
+      el.textContent = 'No transactions yet.';
+      list.appendChild(el);
+      return;
+    }
+    const items = acc.transactions.slice().reverse();
+    items.forEach((tx, i) => {
+      const card = createTxCard(tx);
+      if (animate) {
+        card.style.opacity = 0;
+        list.appendChild(card);
+        setTimeout(()=> card.style.opacity = 1, 40*i);
+      } else list.appendChild(card);
+    });
+  }
+
+  /* SLIDE-UP DRAWER (right) */
+  window.showSlideUpDrawer = function() {
+    const root = document.getElementById('mobileDrawer');
+    const pnl = document.getElementById('mobileDrawerPanel');
+    root.classList.remove('hidden');
+    requestAnimationFrame(()=> pnl.classList.remove('translate-x-full'));
+    document.getElementById('mobileDrawerBackdrop').onclick = hideSlideUpDrawer;
+  };
+  window.hideSlideUpDrawer = function() {
+    const pnl = document.getElementById('mobileDrawerPanel');
+    pnl.classList.add('translate-x-full');
+    setTimeout(()=> document.getElementById('mobileDrawer').classList.add('hidden'), 250);
+  };
+
+  /* GENERIC BOTTOM SHEET */
+  window.openBottomSheet = function(htmlContent, okCb) {
+    const root = document.getElementById('mobileBottomSheet');
+    const panel = document.getElementById('mobileBottomSheetPanel');
+    const content = document.getElementById('mobileBottomSheetContent');
+    const okBtn = document.getElementById('mobileBottomSheetOk');
+    content.innerHTML = htmlContent || '';
+    root.classList.remove('hidden');
+    requestAnimationFrame(()=> panel.classList.remove('translate-y-full'));
+    okBtn.onclick = () => {
+      if (typeof okCb === 'function') okCb();
+      closeBottomSheet();
+    };
+    document.getElementById('mobileBottomSheetBackdrop').onclick = closeBottomSheet;
+  };
+  window.closeBottomSheet = function() {
+    const panel = document.getElementById('mobileBottomSheetPanel');
+    panel.classList.add('translate-y-full');
+    setTimeout(()=> document.getElementById('mobileBottomSheet').classList.add('hidden'), 220);
+  };
+
+  /* Wire to Bottom Nav by replacing mobileOpenSettings / mobileShowActivity names expected earlier */
+  window.mobileOpenSettings = window.openMobileSettings;
+  window.mobileShowActivity = window.openMobileActivity;
+
+  /* Ensure bottom nav uses these new functions (in case nav set previously) */
+  const mobileNavBtns = document.querySelectorAll('.nav-btn[data-nav]');
+  mobileNavBtns.forEach(btn => {
+    btn.removeEventListener && btn.removeEventListener('click', ()=>{}); // no-op safe detach attempt
+    btn.addEventListener('click', (e) => {
+      const nav = btn.getAttribute('data-nav');
+      if (nav === 'settings') {
+        // prevent double-run: let existing handler set active; only open mobile settings here
+        openMobileSettings();
+      }
+      if (nav === 'activity') {
+        openMobileActivity();
+      }
+    });
+  });
+
+  // accessibility: close sheets with ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileActivity();
+      closeMobileSettings();
+      hideSlideUpDrawer();
+      closeBottomSheet();
+    }
+  });
+
+  // expose helper for other code
+  window.openMobileSettings = openMobileSettings;
+  window.closeMobileSettings = closeMobileSettings;
+  window.openMobileActivity = openMobileActivity;
+  window.closeMobileActivity = closeMobileActivity;
+  window.showSlideUpDrawer = showSlideUpDrawer;
+  window.hideSlideUpDrawer = hideSlideUpDrawer;
+
+})();
+/* ✅ MOBILE NAV FUNCTIONALITY — CLEAN RESET */
+(function () {
+
+  const navBtns = document.querySelectorAll(".nav-btn");
+
+  // highlight active nav
+  function setActive(nav) {
+    navBtns.forEach(b => b.classList.remove("text-indigo-600", "font-semibold"));
+    const active = document.querySelector(`[data-nav="${nav}"]`);
+    if (active) active.classList.add("text-indigo-600", "font-semibold");
+  }
+
+  navBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const nav = btn.getAttribute("data-nav");
+      setActive(nav);
+
+      if (nav === "home") window.scrollTo({ top: 0, behavior: "smooth" });
+      if (nav === "send") startAction("send");
+      if (nav === "activity") openMobileActivity();
+      if (nav === "settings") openMobileSettings();
+    });
+  });
+
+  setActive("home");
+
+})();
 
     /* -------------------------
    SETTINGS MODAL LOGIC
@@ -1041,36 +1281,6 @@ window.confirmDeleteAccount = confirmDeleteAccount;
     /* -------------------------
        Expose some functions globally for buttons
        ------------------------- */
-  // Mobile: toggle notification dropdown in a mobile-friendly way
-  function toggleNotifDropdownMobile() {
-    const dd = document.getElementById('notifDropdown');
-    if (!dd) return;
-    // If opening on small screens, pin it above the bottom nav and make it full-width
-    if (dd.classList.contains('hidden')) {
-      renderNotifDropdownList();
-      dd.style.position = 'fixed';
-      dd.style.left = '0';
-      dd.style.right = '0';
-      dd.style.bottom = '56px'; // sit above mobile nav
-      dd.style.top = 'auto';
-      dd.style.maxHeight = '40vh';
-      dd.style.minWidth = '100%';
-      dd.classList.remove('hidden');
-      setTimeout(() => document.addEventListener('mousedown', notifDropdownOutsideClick), 0);
-    } else {
-      dd.classList.add('hidden');
-      document.removeEventListener('mousedown', notifDropdownOutsideClick);
-      // cleanup any inline styles we set
-      dd.style.position = '';
-      dd.style.left = '';
-      dd.style.right = '';
-      dd.style.bottom = '';
-      dd.style.top = '';
-      dd.style.maxHeight = '';
-      dd.style.minWidth = '';
-    }
-  }
-
   window.startAction = startAction;
   window.openPinFromModal = openPinFromModal;
   window.closeAllActionModals = closeAllActionModals;

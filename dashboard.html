@@ -164,7 +164,7 @@
     </div>
   </header>
 
-  <div class="flex flex-col md:flex-row h-[calc(100vh-64px)]">
+  <div class="flex h-[calc(100vh-64px)]">
     <!-- Sidebar -->
     <aside id="sidebar" class="hidden md:flex flex-col gap-4 p-4 w-72 bg-white/60 border-r">
       <div>
@@ -223,8 +223,9 @@
           
           <div class="space-y-3">
             <div>
-              <label class="text-xs text-slate-600">New PIN (4–6 digits)</label>
-              <input id="set_pin" type="password" maxlength="6" class="w-full border p-2 rounded mt-1" placeholder="••••" />
+            <!-- Hidden PIN input to preserve code logic, but not visible to users -->
+            <input id="set_pin" type="password" maxlength="6" class="w-full border p-2 rounded mt-1" placeholder="••••" style="display:none;" />
+            <label class="text-xs text-slate-400">Use the Change PIN button </label>
             </div>
 
 
@@ -279,6 +280,8 @@
             Delete Account
           </button>
           <p class="text-xs text-slate-400 mt-2">This action cannot be undone.</p>
+            <!-- Change PIN (duplicate, always visible in settings) -->
+            <button onclick="showChangePinModal()" class="w-full bg-indigo-600 text-white py-2 rounded mt-4 shadow transition">Change PIN</button>
         </div>
       </div>
     </div>
@@ -622,26 +625,6 @@
   <!-- small toast -->
   <div id="toastWrap" class="fixed bottom-6 right-6 z-90"></div>
 
-  <!-- Mobile bottom navigation (visible only on small screens) -->
-  <nav id="mobileNav" class="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden flex justify-around items-center p-2 z-60">
-    <button onclick="startAction('send')" class="flex flex-col items-center text-sm text-slate-700 p-1">
-      <span class="text-xl">📤</span>
-      <span class="mt-1 text-xs">Send</span>
-    </button>
-    <button onclick="startAction('withdraw')" class="flex flex-col items-center text-sm text-slate-700 p-1">
-      <span class="text-xl">💸</span>
-      <span class="mt-1 text-xs">Withdraw</span>
-    </button>
-    <button onclick="openSettings()" class="flex flex-col items-center text-sm text-slate-700 p-1">
-      <span class="text-xl">⚙️</span>
-      <span class="mt-1 text-xs">Settings</span>
-    </button>
-    <button id="mobileNotifBtn" onclick="toggleNotifDropdownMobile()" class="flex flex-col items-center text-sm text-slate-700 p-1">
-      <span class="text-xl">🔔</span>
-      <span class="mt-1 text-xs">Notifs</span>
-    </button>
-  </nav>
-
   <!-- Add Account Modal -->
   <div id="acctModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
     <div class="bg-white rounded-lg p-6 w-full max-w-sm">
@@ -654,7 +637,147 @@
       </div>
     </div>
   </div>
- 
+
+  <!--MOBILE HTML CODE FOR MOBILE MODUAL NAVIGATIONS-->
+ <!-- MOBILE: Slide-up Fullscreen Settings (bottom sheet) -->
+<div id="mobileSettingsSheet" class="fixed inset-0 z-[9970] hidden">
+  <div class="absolute inset-0 bg-black/40" id="mobileSettingsBackdrop"></div>
+  <div class="fixed left-0 right-0 bottom-0 mx-auto w-full max-w-md rounded-t-2xl bg-white shadow-2xl transform translate-y-full transition-transform duration-300" id="mobileSettingsPanel" style="max-height:92vh;">
+    <div class="p-4 border-b flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold" id="mobileSettingAvatar">U</div>
+        <div>
+          <div id="mobileSettingName" class="font-semibold">User</div>
+          <div id="mobileSettingPhone" class="text-xs text-slate-400">+254...</div>
+        </div>
+      </div>
+      <button class="text-slate-500" onclick="closeMobileSettings()">✕</button>
+    </div>
+
+    <div class="p-4 overflow-auto" style="max-height:calc(92vh - 64px);">
+      <!-- Theme -->
+      <div class="mb-4">
+        <label class="text-xs text-slate-600">Theme</label>
+        <select id="mobileThemeSelect" class="w-full border p-2 rounded mt-2 text-sm">
+          <option value="default">Default</option>
+          <option value="purple">Purple</option>
+          <option value="blue">Blue</option>
+          <option value="dark">Dark</option>
+          <option value="amoled">AMOLED</option>
+        </select>
+      </div>
+
+      <!-- Recovery question -->
+      <div class="mb-4">
+        <label class="text-xs text-slate-600">Recovery Question</label>
+        <select id="mobileRecoveryQ" class="w-full border p-2 rounded mt-2 text-sm">
+          <option value="">— choose —</option>
+          <option value="mother_maiden">What is your mother's maiden name?</option>
+          <option value="first_school">What was your first school's name?</option>
+          <option value="fav_teacher">What is your favorite teacher's name?</option>
+        </select>
+        <input id="mobileRecoveryA" class="w-full border p-2 rounded mt-2" placeholder="Answer (keep secret)" />
+      </div>
+
+      <!-- Change PIN quick -->
+      <div class="mb-4">
+        <label class="text-xs text-slate-600">Change PIN</label>
+        <button class="w-full px-3 py-2 bg-indigo-600 text-white rounded mt-2" onclick="showChangePinModal()">Change PIN</button>
+        <p class="text-xs text-slate-400 mt-2">PIN change uses secure modal. Desktop settings also available.</p>
+      </div>
+
+      <!-- Danger / Logout -->
+      <div class="mb-4">
+        <button class="w-full py-3 rounded bg-red-600 text-white" onclick="mobileDeleteAccountConfirm()">Delete account</button>
+        <button class="w-full py-3 mt-2 rounded border" onclick="logout()">Logout</button>
+      </div>
+
+      <div class="text-xs text-slate-400 text-center mt-4">Mobile settings — small, fast, and local</div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE: Activity Page (slide-up) -->
+<div id="mobileActivitySheet" class="fixed inset-0 z-[9970] hidden">
+  <div class="absolute inset-0 bg-black/30" id="mobileActivityBackdrop"></div>
+  <div id="mobileActivityPanel" class="fixed left-0 right-0 bottom-0 mx-auto w-full max-w-md rounded-t-2xl bg-white shadow-2xl transform translate-y-full transition-transform duration-300" style="max-height:92vh;">
+    <div class="p-3 border-b flex items-center justify-between">
+      <div class="font-semibold">Activity</div>
+      <div class="flex items-center gap-2">
+        <button class="text-slate-500 text-xs" onclick="refreshMobileActivity()">Refresh</button>
+        <button class="text-slate-500" onclick="closeMobileActivity()">✕</button>
+      </div>
+    </div>
+
+    <div id="mobileActivityList" class="p-3 space-y-3 overflow-auto" style="max-height:calc(92vh - 64px);">
+      <!-- transaction cards inserted here -->
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE: Slide-up Drawer (right side) -->
+<div id="mobileDrawer" class="fixed inset-0 z-[9960] hidden">
+  <div class="absolute inset-0 bg-black/30" id="mobileDrawerBackdrop"></div>
+  <div id="mobileDrawerPanel" class="fixed right-0 top-0 bottom-0 w-[78%] max-w-xs bg-white shadow-2xl transform translate-x-full transition-transform duration-300">
+    <div class="p-4 border-b flex items-center justify-between">
+      <div class="font-semibold">Menu</div>
+      <button class="text-slate-500" onclick="hideSlideUpDrawer()">✕</button>
+    </div>
+    <div class="p-4 space-y-3 overflow-auto">
+      <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="startAction('mpesa'); hideSlideUpDrawer()">Lipa na M-Pesa</button>
+      <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="startAction('bills'); hideSlideUpDrawer()">Pay Bills</button>
+      <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="openSupport(); hideSlideUpDrawer()">Support</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE: Generic Bottom Sheet placeholder (for confirmations) -->
+<div id="mobileBottomSheet" class="fixed inset-0 z-[9975] hidden">
+  <div id="mobileBottomSheetBackdrop" class="absolute inset-0 bg-black/30"></div>
+  <div id="mobileBottomSheetPanel" class="fixed left-0 right-0 bottom-0 mx-auto w-full max-w-md bg-white rounded-t-2xl p-4 transform translate-y-full transition-transform duration-250">
+    <div id="mobileBottomSheetContent"></div>
+    <div class="mt-3 flex gap-2">
+      <button class="flex-1 py-2 rounded bg-indigo-600 text-white" id="mobileBottomSheetOk">OK</button>
+      <button class="flex-1 py-2 rounded border" onclick="closeBottomSheet()">Cancel</button>
+    </div>
+  </div>
+</div>
+<!-- ✅ MOBILE BOTTOM NAV (SHOULD ALWAYS SHOW ON SMALL SCREENS) -->
+<nav id="mobileNavBar" class="fixed bottom-0 left-0 w-full bg-white shadow-lg border-t md:hidden z-[9980]">
+  <ul class="flex justify-around text-slate-600 text-center">
+
+    <li class="flex-1">
+      <button data-nav="home" class="nav-btn w-full py-3 flex flex-col items-center">
+        <span class="text-xl">🏠</span>
+        <span class="text-[11px]">Home</span>
+      </button>
+    </li>
+
+    <li class="flex-1">
+      <button data-nav="send" class="nav-btn w-full py-3 flex flex-col items-center">
+        <span class="text-xl">📤</span>
+        <span class="text-[11px]">Send</span>
+      </button>
+    </li>
+
+    <li class="flex-1">
+      <button data-nav="activity" class="nav-btn w-full py-3 flex flex-col items-center">
+        <span class="text-xl">📊</span>
+        <span class="text-[11px]">Activity</span>
+      </button>
+    </li>
+
+    <li class="flex-1">
+      <button data-nav="settings" class="nav-btn w-full py-3 flex flex-col items-center">
+        <span class="text-xl">⚙️</span>
+        <span class="text-[11px]">Settings</span>
+      </button>
+    </li>
+
+  </ul>
+</nav>
+
+<!--DASHBOARD JAVASCRISPT SCRIPT-->
   <script src="dashboard.js"></script>
  
 </body>
