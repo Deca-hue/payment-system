@@ -1,21 +1,67 @@
 MIT License
 
 Copyright (c) 2025 Design SV
+# Design SV Licensing Policy  
+### Protecting the Design SV Brand, Identity, and Creative Assets
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The Design SV brand, along with all associated creative works, visual systems,
+UI/UX patterns, animations, and presentation styles, constitutes proprietary
+intellectual property owned exclusively by Design SV.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+While the underlying source code in this repository may be licensed under the
+MIT License, **the Design SV identity itself is not open-source**.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## Protected Creative Elements
+
+The following categories are strictly protected and fall under **All Rights Reserved**:
+
+- The “Soft Clay UI” visual language uniquely developed by Design SV  
+- Custom animations, micro-interactions, transitions, and 3D effects  
+- Custom-designed components, layouts, and section compositions  
+- Color schemes, typography systems, layout DNA, and design philosophy  
+- Any assets displayed in previews, demos, or project showcases  
+- All 3D elements, story builder assets, and VR/AR interface designs  
+- Project structures intended as part of the Design SV brand portfolio  
+
+## Restrictions
+
+You may **not**:
+
+- Reuse Design SV brand elements in your own branding  
+- Replicate the portfolio layout or design identity  
+- Redistribute creative assets in any form  
+- Use Design SV UI/UX designs commercially  
+- Present derivative work as your own  
+- Use the Design SV name, style, or visuals in advertising  
+- Train AI models on Design SV assets or designs  
+- Sell products based on Design SV creative work  
+
+## Permitted Use
+
+You **may**:
+
+- Use the MIT-licensed code for personal or commercial development  
+- Study the design approach for learning and inspiration  
+- Fork code for development purposes (not the brand assets)  
+- Reference the Design SV portfolio with proper attribution  
+
+---
+
+# Summary
+
+✅ **Code = MIT License**  
+❌ **Design, UI, Assets, Brand = All Rights Reserved**  
+✅ **Use the code**  
+❌ **Do not reuse the identity**
+
+---
+
+If you'd like, I can also package:
+
+✅ Full `LICENSE` file  
+✅ `TRADEMARKS.md`  
+✅ `BRANDING-GUIDELINES.md`  
+✅ A GitHub-optimized `README.md` section that auto-links everything  
+✅ A legal footer for your website  
+
+Just tell me and I’ll prepare them.
