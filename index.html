@@ -2,11 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Money App | Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small modal backdrop style so modals center on mobile */
+    .modal-backdrop { background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
+  </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white shadow-lg rounded-lg w-full max-w-md p-6">
+  <div class="bg-white shadow-lg rounded-lg w-full max-w-sm mx-4 sm:mx-auto p-6">
     <!-- LOGIN SECTION -->
     <div id="loginSection">
       <h1 class="text-2xl font-semibold mb-4 text-center">Login</h1>
@@ -27,8 +32,8 @@
 
     </div>
 
-    <!-- REGISTER SECTION (Hidden by default) -->
-    <div id="registerSection" class="hidden">
+  <!-- REGISTER SECTION (Hidden by default) -->
+  <div id="registerSection" class="hidden">
       <h1 class="text-2xl font-semibold mb-4 text-center">Create Account</h1>
       <input id="regName" type="text" placeholder="Full Name" class="w-full border p-2 rounded mb-3">
       <input id="regPhone" type="text" placeholder="Phone Number" class="w-full border p-2 rounded mb-3">
@@ -44,8 +49,8 @@
   </div>
   
 <!-- FORGOT PIN MODAL -->
-<div id="forgotPinModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+  <div id="forgotPinModal" class="hidden fixed inset-0 z-50 modal-backdrop p-4">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl mx-2">
     
     <h3 class="text-lg font-semibold mb-2">Reset PIN</h3>
     <p class="text-sm text-slate-500 mb-4">
@@ -70,8 +75,8 @@
 </div>
 
 <!-- NEW PIN MODAL (Step 2 after correct answer) -->
-<div id="newPinModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+  <div id="newPinModal" class="hidden fixed inset-0 z-50 modal-backdrop p-4">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl mx-2">
 
     <h3 class="text-lg font-semibold mb-2">Create New PIN</h3>
     <p class="text-sm text-slate-500 mb-4">Enter a new 4–6 digit PIN.</p>

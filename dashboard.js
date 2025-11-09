@@ -130,6 +130,9 @@
     const root = document.getElementById(rootId);
     const panel = document.getElementById(panelId);
     if (!root || !panel) return;
+  // close other mobile sheets and any open action modals so panels don't stack
+  if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
+  if (typeof closeAllActionModals === 'function') closeAllActionModals();
     root.classList.remove('hidden');
     // force reflow then slide up
     requestAnimationFrame(() => panel.classList.remove('translate-y-full', 'translate-x-full'));
@@ -152,8 +155,29 @@
     setTimeout(() => root.classList.add('hidden'), 300);
   }
 
+  // Close any mobile sheet panels (activity, settings, drawer, bottom sheet)
+  function closeAllMobileSheets() {
+    // Immediately hide any mobile sheet roots and ensure panels are translated off-screen
+    const ids = ['mobileActivitySheet','mobileSettingsSheet','mobileDrawer','mobileBottomSheet'];
+    ids.forEach(id => {
+      const root = document.getElementById(id);
+      if (!root) return;
+      root.classList.add('hidden');
+      // map to expected panel id
+      let panelId = id === 'mobileDrawer' ? 'mobileDrawerPanel' : (id === 'mobileActivitySheet' ? 'mobileActivityPanel' : (id === 'mobileSettingsSheet' ? 'mobileSettingsPanel' : 'mobileBottomSheetPanel'));
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      if (panelId === 'mobileDrawerPanel') panel.classList.add('translate-x-full');
+      else panel.classList.add('translate-y-full');
+    });
+    // extra drawer hide just in case
+    if (typeof hideSlideUpDrawer === 'function') hideSlideUpDrawer();
+  }
+
   /* MOBILE SETTINGS */
   window.openMobileSettings = function() {
+    // make sure any action modals are closed before opening mobile settings
+    if (typeof closeAllActionModals === 'function') closeAllActionModals();
     // fill user info
     document.getElementById('mobileSettingName').textContent = user.name || 'User';
     document.getElementById('mobileSettingPhone').textContent = user.phone || '';
@@ -225,6 +249,8 @@
   }
 
   window.openMobileActivity = function() {
+    // ensure no action modal is left open under the activity sheet
+    if (typeof closeAllActionModals === 'function') closeAllActionModals();
     populateMobileActivity();
     showPanel('mobileActivitySheet','mobileActivityPanel');
   };
@@ -261,6 +287,9 @@
 
   /* SLIDE-UP DRAWER (right) */
   window.showSlideUpDrawer = function() {
+    // ensure no other mobile sheet or action modal is open
+    if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
+    if (typeof closeAllActionModals === 'function') closeAllActionModals();
     const root = document.getElementById('mobileDrawer');
     const pnl = document.getElementById('mobileDrawerPanel');
     root.classList.remove('hidden');
@@ -275,6 +304,9 @@
 
   /* GENERIC BOTTOM SHEET */
   window.openBottomSheet = function(htmlContent, okCb) {
+    // ensure no other mobile sheet or action modal is open
+    if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
+    if (typeof closeAllActionModals === 'function') closeAllActionModals();
     const root = document.getElementById('mobileBottomSheet');
     const panel = document.getElementById('mobileBottomSheetPanel');
     const content = document.getElementById('mobileBottomSheetContent');
@@ -331,6 +363,8 @@
   window.closeMobileActivity = closeMobileActivity;
   window.showSlideUpDrawer = showSlideUpDrawer;
   window.hideSlideUpDrawer = hideSlideUpDrawer;
+  // expose closeAllMobileSheets so other modules can call it
+  window.closeAllMobileSheets = closeAllMobileSheets;
 
 })();
 /* ✅ MOBILE NAV FUNCTIONALITY — CLEAN RESET */
@@ -349,6 +383,10 @@
     btn.addEventListener("click", () => {
       const nav = btn.getAttribute("data-nav");
       setActive(nav);
+
+      // close any mobile sheets and action modals to avoid stacking
+      if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
+      if (typeof closeAllActionModals === 'function') closeAllActionModals();
 
       if (nav === "home") window.scrollTo({ top: 0, behavior: "smooth" });
       if (nav === "send") startAction("send");
@@ -1067,6 +1105,8 @@ window.confirmDeleteAccount = confirmDeleteAccount;
       pendingAction = kind;
       pendingActionPayload = null;
       // open respective modal
+      // close any mobile sheets so action modal isn't hidden behind them
+      if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
       closeAllActionModals();
       if (kind === 'bank') document.getElementById('bankModal').classList.remove('hidden');
       else if (kind === 'paypal') document.getElementById('paypalModal').classList.remove('hidden');

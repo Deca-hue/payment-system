@@ -185,27 +185,36 @@ function saveNewPin() {
 
 // lightweight toast for the login page (small copy of dashboard toast)
 function showToast(msg) {
-  // create a small temporary element centered at bottom
+  // clear any existing toasts
   const existing = document.getElementById('login_toast_wrap');
-  let wrap = existing;
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.id = 'login_toast_wrap';
-    wrap.style.position = 'fixed';
-    wrap.style.left = '50%';
-    wrap.style.transform = 'translateX(-50%)';
-    wrap.style.bottom = '20px';
-    wrap.style.zIndex = 9999;
-    document.body.appendChild(wrap);
+  if (existing) {
+    existing.remove();
   }
+  
+  // create wrapper if needed
+  const wrap = document.createElement('div');
+  wrap.id = 'login_toast_wrap';
+  wrap.style.position = 'fixed';
+  wrap.style.left = '50%';
+  wrap.style.transform = 'translateX(-50%)';
+  wrap.style.bottom = '20px';
+  wrap.style.zIndex = 9999;
+  document.body.appendChild(wrap);
+  
+  // create toast element
   const el = document.createElement('div');
   el.style.background = 'rgba(0,0,0,0.85)';
   el.style.color = 'white';
   el.style.padding = '8px 12px';
   el.style.borderRadius = '6px';
   el.style.marginTop = '6px';
+  el.style.transition = 'opacity 0.3s ease-out';
   el.textContent = msg;
   wrap.appendChild(el);
-  setTimeout(() => el.style.opacity = '0.0', 2000);
-  setTimeout(() => el.remove(), 2500);
+  
+  // handle cleanup with single timer
+  const timer = setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => wrap.remove(), 300);
+  }, 2000);
 }
