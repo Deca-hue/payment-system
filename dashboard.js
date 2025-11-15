@@ -425,9 +425,15 @@ function saveSettings() {
     return;
   }
 
+   // BLOCK PHONE NUMBER UPDATE
+  if (newPhone !== user.phone) {
+    showToast("Sorry, you can’t change your phone number.");
+    document.getElementById('set_phone').value = user.phone; // reset back
+    return;
+  }
+
   // Update user profile
   user.name = newName;
-  user.phone = newPhone;
 
   // Update PIN if entered
   if (newPin && newPin.length >= 4) {
