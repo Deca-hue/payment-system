@@ -354,8 +354,8 @@
         <input id="noteInput" class="w-full border p-2 rounded mb-3" placeholder="For rent, lunch, ..." />
       </div>
       <div class="flex gap-2 mt-4">
-        <button id="confirmActionBtn" class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="confirmAction()">Confirm</button>
-        <button class="flex-1 py-2 rounded border" onclick="closeActionModal()">Cancel</button>
+        <button id="confirmActionBtn" class="flex-1 bg-indigo-600 text-white py-2 rounded">Confirm</button>
+        <button class="flex-1 py-2 rounded border" id="closeActionModalBtn">Cancel</button>
       </div>
     </div>
   </div>
@@ -783,17 +783,24 @@
 <!-- MOBILE: Slide-up Drawer (right side) -->
 <div id="mobileDrawer" class="fixed inset-0 z-[9960] hidden">
   <div class="absolute inset-0 bg-black/30" id="mobileDrawerBackdrop"></div>
-  <div id="mobileDrawerPanel" class="fixed right-0 top-0 bottom-0 w-[78%] max-w-xs bg-white shadow-2xl transform translate-x-full transition-transform duration-300">
-    <div class="p-4 border-b flex items-center justify-between">
-      <div class="font-semibold">Menu</div>
-      <button class="text-slate-500" onclick="hideSlideUpDrawer()">✕</button>
-    </div>
-    <div class="p-4 space-y-3 overflow-auto">
-      <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="startAction('mpesa'); hideSlideUpDrawer()">Lipa na M-Pesa</button>
-      <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="startAction('bills'); hideSlideUpDrawer()">Pay Bills</button>
-      <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="openSupport(); hideSlideUpDrawer()">Support</button>
-    </div>
-  </div>
+      <div id="mobileDrawerPanel" class="fixed right-0 top-0 bottom-0 w-[78%] max-w-xs bg-white shadow-2xl transform translate-x-full transition-transform duration-300">
+        <div class="p-4 border-b flex items-center justify-between">
+          <div class="font-semibold">Menu</div>
+          <button class="text-slate-500" onclick="hideSlideUpDrawer()">✕</button>
+        </div>
+        <div class="p-4 space-y-3 overflow-auto">
+          <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="showAddAccount(); hideSlideUpDrawer()">+ Add Account</button>
+
+          <!-- Mobile Accounts List -->
+          <div id="mobileAccountsList" class="mt-2 max-h-60 overflow-y-auto border rounded p-2">
+            <!-- accounts will be rendered here -->
+          </div>
+
+          <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="startAction('mpesa'); hideSlideUpDrawer()">Lipa na M-Pesa</button>
+          <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="startAction('bills'); hideSlideUpDrawer()">Pay Bills</button>
+          <button class="w-full text-left py-3 rounded hover:bg-slate-50" onclick="openSupport(); hideSlideUpDrawer()">Support</button>
+        </div>
+      </div>
 </div>
 
 <!-- MOBILE: Generic Bottom Sheet placeholder (for confirmations) -->

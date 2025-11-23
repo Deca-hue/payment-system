@@ -139,14 +139,16 @@ function recoveryQuestionLabel(key) {
 
 function submitForgotPin() {
   const ans = document.getElementById('fp_answer').value.trim();
+
+  // Validate answer presence
   if (!ans) {
-    alert("Enter your answer.");
+    showToast("Enter your answer.");
     return;
   }
   
-  // Ensure user and recovery answer exist and match
+  // Ensure user and recovery answer exist and match (case insensitive)
   if (!user || !user.recovery_a || ans.toLowerCase() !== user.recovery_a.toLowerCase()) {
-    alert("Incorrect answer.");
+    showToast("Incorrect answer.");
     return;
   }
 
