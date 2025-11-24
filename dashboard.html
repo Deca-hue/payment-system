@@ -160,6 +160,40 @@
     </div>
   </div>
       </div>
+      
+      <!-- Top Up Modal (Add Funds) -->
+      <div id="topUpModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+          <h3 class="text-lg font-semibold mb-3">Top Up</h3>
+          <p class="text-sm text-slate-500 mb-3">Add funds to your account. Choose a method and enter amount.</p>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-600">Method</label>
+              <select id="topup_method" class="w-full border p-2 rounded">
+                <option value="mpesa">M-Pesa</option>
+                <option value="airtel">Airtel Money</option>
+                <option value="bank">Bank Transfer</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Phone (if required)</label>
+              <input id="topup_phone" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Amount (KES)</label>
+              <input id="topup_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Note (optional)</label>
+              <input id="topup_note" class="w-full border p-2 rounded" placeholder="Note (optional)" />
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('topup')">Proceed</button>
+            <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+          </div>
+        </div>
+      </div>
 
       <button onclick="logout()" class="bg-red-500 text-white px-3 py-1 rounded text-sm">Logout</button>
     </div>
@@ -348,6 +382,26 @@
           <label class="text-xs text-slate-600">Recipient (phone or account)</label>
           <input id="recipientInput" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX or Account name">
         </div>
+
+        <!-- Deposit Source Selection -->
+        <div id="depositSourceField" class="mb-3 hidden">
+          <label class="text-xs text-slate-600 block mb-1">Deposit Source</label>
+          <div class="flex gap-4">
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="depositSource" value="mpesa" />
+              MPESA
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="depositSource" value="airtel" />
+              Airtel Money
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="depositSource" value="bank" />
+              Bank
+            </label>
+          </div>
+        </div>
+
         <label class="text-xs text-slate-600">Amount (KES)</label>
         <input id="amountInput" type="number" class="w-full border p-2 rounded mb-3" placeholder="Amount">
         <label class="text-xs text-slate-600">Note (optional)</label>
@@ -359,6 +413,43 @@
       </div>
     </div>
   </div>
+
+      <!-- Deposit Source Selection Modal -->
+      <div id="depositSourceModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+          <h3 class="text-lg font-semibold mb-3">Deposit Funds</h3>
+          <p class="text-sm text-slate-500 mb-4">Choose the source to deposit from.</p>
+          <div class="space-y-3">
+            <button id="depositMpesaBtn" class="w-full bg-indigo-600 text-white py-2 rounded">MPESA</button>
+            <button id="depositAirtelBtn" class="w-full bg-green-600 text-white py-2 rounded">Airtel Money</button>
+            <button id="depositBankBtn" class="w-full bg-slate-200 py-2 rounded">Bank Transfer</button>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Airtel Money Modal -->
+      <div id="airtelModal" class="hidden fixed inset-0 z-60 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+          <h3 class="text-lg font-semibold mb-3">Airtel Money Deposit</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-600">Phone Number</label>
+              <input id="airtel_phone" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-600">Amount (KES)</label>
+              <input id="airtel_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount" />
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="openPinFromModal('airtel')">Proceed</button>
+            <button class="flex-1 py-2 rounded border" onclick="closeAllActionModals()">Cancel</button>
+          </div>
+        </div>
+      </div>
 
         <!-- ACCOUNT SUMMARY -->
         <section class="grid md:grid-cols-3 gap-4 items-start">
@@ -381,6 +472,7 @@
               <button onclick="startAction('send')" class="flex-1 bg-blue-600 text-white py-2 rounded shadow">Send</button>
               <button onclick="startAction('withdraw')" class="flex-1 bg-yellow-500 text-white py-2 rounded shadow">Withdraw</button>
               <button onclick="startAction('deposit')" class="flex-1 bg-green-600 text-white py-2 rounded shadow">Deposit</button>
+              <button onclick="startAction('topup')" class="flex-1 bg-emerald-600 text-white py-2 rounded shadow">Add Funds</button>
             </div>
           </div>
 

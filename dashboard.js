@@ -380,11 +380,18 @@ function startAction(kind) {
   else if (kind === 'bills') document.getElementById('billsModal').classList.remove('hidden');
   else if (kind === 'send') document.getElementById('sendModal').classList.remove('hidden');
   else if (kind === 'withdraw') document.getElementById('withdrawModal').classList.remove('hidden');
-  else if (kind === 'deposit') document.getElementById('actionModal').classList.remove('hidden');
+  else if (kind === 'deposit') document.getElementById('depositSourceModal').classList.remove('hidden');
+  else if (kind === 'topup') {
+    // Prefill phone in Top Up modal from current user and open
+    const phoneEl = document.getElementById('topup_phone');
+    if (phoneEl) phoneEl.value = user.phone || '';
+    const topEl = document.getElementById('topUpModal');
+    if (topEl) topEl.classList.remove('hidden');
+  }
 }
 
 function closeAllActionModals() {
-  ['bankModal','paypalModal','agentModal','mpesaModal','billsModal','sendModal','withdrawModal','actionModal'].forEach(id => {
+  ['bankModal','paypalModal','agentModal','mpesaModal','billsModal','sendModal','withdrawModal','actionModal','depositSourceModal','airtelModal','topUpModal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -445,6 +452,14 @@ function openPinFromModal(kind) {
     payload.description = `Deposit`;
   }
 
+  else if (kind === 'topup') {
+    payload.amount = Number(document.getElementById('topup_amount').value || 0);
+    payload.note = document.getElementById('topup_note').value.trim();
+    payload.method = document.getElementById('topup_method') ? document.getElementById('topup_method').value : '';
+    payload.phone = document.getElementById('topup_phone') ? document.getElementById('topup_phone').value.trim() : '';
+    payload.description = `Top Up${payload.method ? ' — ' + payload.method.toUpperCase() : ''}`;
+  }
+
   if (!payload.amount || payload.amount <= 0) { 
     alert('Enter valid amount'); 
     return; 
@@ -496,6 +511,9 @@ function processPendingAction() {
   if (kind === 'mpesa') {
     showToast('Sending STK push... (mock)');
     setTimeout(() => finalizeTx(-p.amount, p, 'mpesa'), 1400);
+  } else if (kind === 'topup') {
+    // top-up adds funds (incoming)
+    finalizeTx(Number(p.amount), p, 'topup');
   } else {
     finalizeTx(-p.amount, p, kind);
   }
@@ -522,7 +540,7 @@ function finalizeTx(amountSigned, payload, kind) {
   else if (kind === 'bank') txType = 'bank';
   else if (kind === 'paypal') txType = 'paypal';
   else if (kind === 'send') txType = 'send';
-  else if (kind === 'deposit') txType = 'deposit';
+  else if (kind === 'deposit' || kind === 'topup') txType = 'deposit';
 
   const tx = {
     id: genId(),
@@ -546,6 +564,7 @@ function finalizeTx(amountSigned, payload, kind) {
     if (kind === 'bills') return `Bill paid ${formatCurrency(amt)} — ${payload.billType}`;
     if (kind === 'send') return `Sent ${formatCurrency(amt)} to ${payload.recipient}`;
     if (kind === 'deposit') return `Deposit ${formatCurrency(amt)} received`;
+    if (kind === 'topup') return `Top up ${formatCurrency(amt)} received${payload.method ? ' via ' + payload.method.toUpperCase() : ''}`;
     return `Transaction: ${formatCurrency(amt)}`;
   })();
 
@@ -560,6 +579,15 @@ function finalizeTx(amountSigned, payload, kind) {
   pendingAction = null; 
   pendingActionPayload = null;
   showToast('Transaction successful');
+
+  // If this was a top-up, clear the top-up modal fields and ensure modal is closed
+  if (kind === 'topup') {
+    const phoneEl = document.getElementById('topup_phone'); if (phoneEl) phoneEl.value = '';
+    const amtEl = document.getElementById('topup_amount'); if (amtEl) amtEl.value = '';
+    const noteEl = document.getElementById('topup_note'); if (noteEl) noteEl.value = '';
+    const methodEl = document.getElementById('topup_method'); if (methodEl) methodEl.selectedIndex = 0;
+    const topEl = document.getElementById('topUpModal'); if (topEl) topEl.classList.add('hidden');
+  }
 }
 
 /* -------------------------
@@ -1024,6 +1052,34 @@ function init() {
   if (closeActionModalBtn) {
     closeActionModalBtn.addEventListener('click', () => {
       closeAllActionModals();
+    });
+  }
+
+  // Deposit source buttons (from depositSourceModal)
+  const depositMpesaBtn = document.getElementById('depositMpesaBtn');
+  if (depositMpesaBtn) {
+    depositMpesaBtn.addEventListener('click', () => {
+      closeAllActionModals();
+      const el = document.getElementById('mpesaModal');
+      if (el) el.classList.remove('hidden');
+    });
+  }
+
+  const depositAirtelBtn = document.getElementById('depositAirtelBtn');
+  if (depositAirtelBtn) {
+    depositAirtelBtn.addEventListener('click', () => {
+      closeAllActionModals();
+      const el = document.getElementById('airtelModal');
+      if (el) el.classList.remove('hidden');
+    });
+  }
+
+  const depositBankBtn = document.getElementById('depositBankBtn');
+  if (depositBankBtn) {
+    depositBankBtn.addEventListener('click', () => {
+      closeAllActionModals();
+      const el = document.getElementById('bankModal');
+      if (el) el.classList.remove('hidden');
     });
   }
   
