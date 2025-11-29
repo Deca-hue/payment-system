@@ -56,6 +56,54 @@
           <div class="text-xs text-slate-500">Demo dashboard</div>
         </div>
       </div>
+
+        <!-- QR Scan Modal -->
+        <div id="qrModal" class="hidden fixed inset-0 z-70 modal-backdrop flex items-center justify-center p-4">
+          <div class="bg-white rounded-lg p-4 w-full max-w-lg">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h3 class="text-lg font-semibold">Scan QR — QR Pay</h3>
+                <p class="text-xs text-slate-500 mt-1">Allow camera access to scan a merchant QR code.</p>
+              </div>
+              <button class="text-slate-500" onclick="closeQrModal()">✕</button>
+            </div>
+
+            <div id="qrBody" class="space-y-3">
+              <div class="bg-black rounded overflow-hidden">
+                <video id="qrVideo" class="w-full h-64 bg-black" autoplay playsinline></video>
+              </div>
+              <div id="qrStatus" class="text-sm text-slate-500">Waiting for camera permission...</div>
+
+              <div class="flex gap-2">
+                <button id="qrStartBtn" type="button" class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="startQrCamera()">Start Camera</button>
+                <button id="qrScanBtn" type="button" class="flex-1 py-2 rounded border" onclick="scanQrNow()">Scan Now</button>
+                <button id="qrStopBtn" type="button" class="flex-1 py-2 rounded border" onclick="stopQrCamera()">Stop</button>
+              </div>
+
+              <div id="qrResultWrap" class="hidden p-2 border rounded bg-emerald-50">
+                <div class="font-medium">Scanned result</div>
+                <pre id="qrResult" class="text-xs text-slate-700"></pre>
+                <div class="flex gap-2 mt-2">
+                  <button class="flex-1 bg-green-600 text-white py-2 rounded" onclick="handleQrPayment()">Pay with scanned data</button>
+                  <button class="flex-1 py-2 rounded border" onclick="resetQrResult()">Reset</button>
+                </div>
+              </div>
+
+              <div id="qrFallback" class="text-xs text-slate-400">If camera doesn't work, you can manually enter payment details below.</div>
+              <!-- Manual fallback inputs -->
+              <div id="qrManualWrap" class="mt-2 space-y-2">
+                <div>
+                  <label class="text-xs text-slate-600">Amount (KES)</label>
+                  <input id="qr_manual_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount (e.g. 500)" />
+                </div>
+                <div>
+                  <label class="text-xs text-slate-600">Reference / Note</label>
+                  <input id="qr_manual_ref" class="w-full border p-2 rounded" placeholder="Reference (optional)" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
     </div>
 
       <!-- SEND Modal (quick action) -->
@@ -954,6 +1002,8 @@
 
 <!--DASHBOARD JAVASCRISPT SCRIPT-->
   <script src="dashboard.js"></script>
+  <!-- jsQR (for QR scanning) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
  <script>
   function toggleMobileProfileEdit() {
     const box = document.getElementById("mobileProfileEdit");
