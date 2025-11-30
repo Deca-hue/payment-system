@@ -1019,20 +1019,32 @@ let inlineQrDetectedData = null;
 let qrScanner = null;
 
 function openQrMock() {
-  // open the action modal and start the inline scanner
-  if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
-  closeAllActionModals();
-  const modal = document.getElementById('actionModal'); if (modal) modal.classList.remove('hidden');
-  const sec = document.getElementById('qrScannerSection'); if (sec) sec.classList.remove('hidden');
-  const pay = document.getElementById('qrPaymentSection'); if (pay) pay.classList.add('hidden');
-  startInlineScanner();
+  // open the enhanced QR modal
+  openEnhancedQrModal();
 }
 
 
 async function startInlineScanner() {
   const container = document.getElementById('qrScanner');
   if (!container) return;
+
+  if (typeof Html5Qrcode === 'undefined') {
+    // scanner lib not ready
+    showToast('Scanner library not loaded yet. Please reload the page and try again.');
+    const msgEl = document.getElementById('qrScannerMsg'); if (msgEl) { msgEl.textContent = 'Scanner library is not available. Reload or check network.'; msgEl.classList.remove('hidden'); }
+    return;
+  }
   try {
+    // first request camera permission explicitly to ensure browser shows prompt
+    try {
+      const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // immediately stop tracks — this is only to trigger permission prompt and to ensure access
+      testStream.getTracks().forEach(t => t.stop());
+    } catch (permErr) {
+      showToast('Camera permission denied or not available. Check your browser settings and try again.');
+      return;
+    }
+
     // initialize Html5Qrcode if needed
     if (!qrScanner) qrScanner = new Html5Qrcode('qrScanner');
 
@@ -1058,10 +1070,11 @@ async function startInlineScanner() {
         }).catch(()=>{});
       }
     );
-  } catch (err) {
-    showToast('Camera access denied or not available.');
-    console.error('Inline QR camera error', err);
-  }
+    } catch (err) {
+      showToast('Camera access denied or not available.');
+      const msgEl = document.getElementById('qrScannerMsg'); if (msgEl) { msgEl.textContent = 'Camera access denied. Open site settings and allow camera access, or run over localhost/HTTPS.'; msgEl.classList.remove('hidden'); }
+      console.error('Inline QR camera error', err);
+    }
 }
 
 function stopInlineScanner() {
@@ -1106,7 +1119,7 @@ function init() {
       e.stopPropagation();
       toggleNotifDropdown();
     });
-  }
+  }}
 
   // Add event listeners for action modal buttons
   const confirmActionBtn = document.getElementById('confirmActionBtn');
@@ -1151,41 +1164,12 @@ function init() {
       const el = document.getElementById('bankModal');
       if (el) el.classList.remove('hidden');
     });
-
-    // Action modal: inline QR scanner & QR generator
-    const scanQRBtn = document.getElementById('scanQRBtn');
-    if (scanQRBtn) scanQRBtn.addEventListener('click', () => {
-      const sec = document.getElementById('qrScannerSection');
-      const pay = document.getElementById('qrPaymentSection');
-      if (pay) pay.classList.add('hidden');
-      if (sec) sec.classList.remove('hidden');
-      startInlineScanner();
-    });
-
-    const stopScannerBtn = document.getElementById('stopScannerBtn');
-    if (stopScannerBtn) stopScannerBtn.addEventListener('click', () => {
-      stopInlineScanner();
-      const sec = document.getElementById('qrScannerSection'); if (sec) sec.classList.add('hidden');
-    });
-
-    const showQRBtn = document.getElementById('showQRBtn');
-    if (showQRBtn) showQRBtn.addEventListener('click', () => {
-      stopInlineScanner();
-      const sec = document.getElementById('qrScannerSection'); if (sec) sec.classList.add('hidden');
-      const pay = document.getElementById('qrPaymentSection'); if (pay) pay.classList.remove('hidden');
-      const recipient = (document.getElementById('recipientInput')?.value || '').trim();
-      const amount = (document.getElementById('amountInput')?.value || '').trim();
-      const note = (document.getElementById('noteInput')?.value || '').trim();
-
-      const qrData = JSON.stringify({ type: 'payment', to: recipient || 'User', amount: amount || '0', note: note || '' });
-      const container = document.getElementById('paymentQr');
-      if (container) {
-        container.innerHTML = '';
-        // use QRCode library to generate
-        new QRCode(container, { text: qrData, width: 180, height: 180 });
-      }
-    });
   }
+
+  // Action modal: inline QR scanner & QR generator — always bind these handlers so the buttons work even
+  // if deposit source buttons are missing or rendered differently.
+ 
+  //qr code scanner buttons end
   
   updateNotifBadge();
   
@@ -1201,7 +1185,7 @@ function init() {
   }
   updateNotifBadge();
   renderNotifs();
-}
+
 
 function renderMobileAccounts() {
   const container = document.getElementById('mobileAccountsList');
@@ -1224,6 +1208,316 @@ function renderMobileAccounts() {
 // Initialize the application
 init();
 renderMobileAccounts();
+
+// Enhanced QR Modal Functions
+let enhancedQrScanner = null;
+
+function openEnhancedQrModal() {
+  document.getElementById('enhancedQrModal').classList.remove('hidden');
+  // Default to Pay tab
+  switchQrTab('pay');
+
+  // Add event listeners for tab buttons
+  document.getElementById('qrPayTab').addEventListener('click', () => switchQrTab('pay'));
+  document.getElementById('qrReceiveTab').addEventListener('click', () => switchQrTab('receive'));
+  document.getElementById('qrMerchantTab').addEventListener('click', () => switchQrTab('merchant'));
+  document.getElementById('qrHistoryTab').addEventListener('click', () => switchQrTab('history'));
+}
+
+function closeEnhancedQrModal() {
+  document.getElementById('enhancedQrModal').classList.add('hidden');
+  stopEnhancedQrScan();
+  // Clear any generated QRs
+  const containers = ['receiveQrContainer', 'merchantQrContainer', 'generatedQrContainer'];
+  containers.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+}
+
+function switchQrTab(tab) {
+  // Hide all tab contents
+  const contents = ['qrPayContent', 'qrReceiveContent', 'qrMerchantContent', 'qrHistoryContent'];
+  contents.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+
+  // Remove active from all tabs
+  const tabs = ['qrPayTab', 'qrReceiveTab', 'qrMerchantTab', 'qrHistoryTab'];
+  tabs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('border-indigo-600', 'text-indigo-600');
+    if (el) el.classList.add('text-slate-500');
+  });
+
+  // Show selected tab content and activate tab
+  if (tab === 'pay') {
+    document.getElementById('qrPayContent').classList.remove('hidden');
+    document.getElementById('qrPayTab').classList.add('border-indigo-600', 'text-indigo-600');
+    document.getElementById('qrPayTab').classList.remove('text-slate-500');
+  } else if (tab === 'receive') {
+    document.getElementById('qrReceiveContent').classList.remove('hidden');
+    document.getElementById('qrReceiveTab').classList.add('border-indigo-600', 'text-indigo-600');
+    document.getElementById('qrReceiveTab').classList.remove('text-slate-500');
+    generateReceiveQr();
+  } else if (tab === 'merchant') {
+    document.getElementById('qrMerchantContent').classList.remove('hidden');
+    document.getElementById('qrMerchantTab').classList.add('border-indigo-600', 'text-indigo-600');
+    document.getElementById('qrMerchantTab').classList.remove('text-slate-500');
+  } else if (tab === 'history') {
+    document.getElementById('qrHistoryContent').classList.remove('hidden');
+    document.getElementById('qrHistoryTab').classList.add('border-indigo-600', 'text-indigo-600');
+    document.getElementById('qrHistoryTab').classList.remove('text-slate-500');
+    renderQrHistory();
+  }
+}
+
+function startQrScan() {
+  const scanner = document.getElementById('enhancedQrScanner');
+  const status = document.getElementById('enhancedQrStatus');
+  if (scanner) scanner.classList.remove('hidden');
+  if (status) status.textContent = 'Initializing camera...';
+
+  if (typeof Html5Qrcode === 'undefined') {
+    if (status) status.textContent = 'Scanner library not loaded.';
+    return;
+  }
+
+  try {
+    if (!enhancedQrScanner) enhancedQrScanner = new Html5Qrcode('enhancedQrVideo');
+
+    enhancedQrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 230 },
+      qrMessage => {
+        console.log('Enhanced QR Scanned:', qrMessage);
+        try {
+          const data = JSON.parse(qrMessage);
+          if (data.to) document.getElementById('qrRecipient').value = data.to;
+          if (data.amount) document.getElementById('qrAmount').value = data.amount;
+          if (data.note) document.getElementById('qrNote').value = data.note;
+          stopEnhancedQrScan();
+          showToast('QR scanned successfully');
+        } catch (e) {
+          showToast('Invalid QR format');
+        }
+      },
+      errorMessage => {
+        // Optional: handle scan errors
+      }
+    ).then(() => {
+      if (status) status.textContent = 'Camera ready. Point at QR code.';
+    }).catch(err => {
+      if (status) status.textContent = 'Camera access failed.';
+      console.error('Enhanced QR scan error:', err);
+    });
+  } catch (err) {
+    if (status) status.textContent = 'Scanner initialization failed.';
+    console.error('Enhanced QR scanner error:', err);
+  }
+}
+
+function stopEnhancedQrScan() {
+  const scanner = document.getElementById('enhancedQrScanner');
+  if (scanner) scanner.classList.add('hidden');
+
+  try {
+    if (enhancedQrScanner) {
+      enhancedQrScanner.stop().then(() => {
+        try { enhancedQrScanner.clear(); } catch(e){}
+        enhancedQrScanner = null;
+      }).catch(()=>{ enhancedQrScanner = null; });
+    }
+  } catch(e){}
+}
+
+function showQrTemplates() {
+  // Mock templates - in real app, this would show a list of saved payment templates
+  const templates = [
+    { name: 'Rent Payment', to: 'landlord@mpesa', amount: '15000', note: 'Monthly rent' },
+    { name: 'Electricity Bill', to: 'kplc@paybill', amount: '2500', note: 'Prepaid electricity' },
+    { name: 'Internet Bill', to: 'safaricom@paybill', amount: '3000', note: 'Monthly internet' }
+  ];
+
+  const templateHtml = templates.map(t => `
+    <button onclick="applyQrTemplate('${t.to}', '${t.amount}', '${t.note}')" class="w-full text-left p-3 border rounded mb-2 hover:bg-slate-50">
+      <div class="font-medium">${t.name}</div>
+      <div class="text-sm text-slate-500">To: ${t.to} | Amount: KES ${t.amount}</div>
+    </button>
+  `).join('');
+
+  // For demo, just show toast - in real app, open a modal or section
+  showToast('Templates feature - coming soon!');
+}
+
+function applyQrTemplate(to, amount, note) {
+  document.getElementById('qrRecipient').value = to;
+  document.getElementById('qrAmount').value = amount;
+  document.getElementById('qrNote').value = note;
+}
+
+function generatePaymentQr() {
+  const recipient = document.getElementById('qrRecipient').value.trim();
+  const amount = document.getElementById('qrAmount').value.trim();
+  const note = document.getElementById('qrNote').value.trim();
+
+  if (!recipient || !amount) {
+    showToast('Please enter recipient and amount');
+    return;
+  }
+
+  const qrData = JSON.stringify({
+    type: 'payment',
+    to: recipient,
+    amount: amount,
+    note: note,
+    from: user.phone,
+    timestamp: now()
+  });
+
+  const container = document.getElementById('generatedQrContainer');
+  if (container) {
+    container.innerHTML = '';
+    new QRCode(container, { text: qrData, width: 180, height: 180 });
+  }
+
+  document.getElementById('generatedQrSection').classList.remove('hidden');
+  showToast('Payment QR generated');
+}
+
+function generateReceiveQr() {
+  const qrData = JSON.stringify({
+    type: 'receive',
+    to: user.phone,
+    name: user.name,
+    account: 'Main Account',
+    timestamp: now()
+  });
+
+  const container = document.getElementById('receiveQrContainer');
+  if (container) {
+    container.innerHTML = '';
+    new QRCode(container, { text: qrData, width: 150, height: 150 });
+  }
+
+  document.getElementById('receiveName').textContent = user.name || 'User';
+  document.getElementById('receivePhone').textContent = user.phone || '';
+  document.getElementById('receiveAccount').textContent = 'Main Account';
+}
+
+function regenerateReceiveQr() {
+  generateReceiveQr();
+  showToast('QR refreshed');
+}
+
+function generateMerchantQr() {
+  const name = document.getElementById('merchantName').value.trim();
+  const amount = document.getElementById('merchantAmount').value.trim();
+  const desc = document.getElementById('merchantDesc').value.trim();
+  const fixed = document.getElementById('merchantFixed').checked;
+
+  if (!name || !desc) {
+    showToast('Please enter business name and description');
+    return;
+  }
+
+  const qrData = JSON.stringify({
+    type: 'merchant',
+    business: name,
+    amount: fixed ? amount : '',
+    description: desc,
+    fixedAmount: fixed,
+    merchantId: user.phone,
+    timestamp: now()
+  });
+
+  const container = document.getElementById('merchantQrContainer');
+  if (container) {
+    container.innerHTML = '';
+    new QRCode(container, { text: qrData, width: 150, height: 150 });
+  }
+
+  showToast('Merchant QR generated');
+}
+
+function downloadMerchantQr() {
+  const canvas = document.querySelector('#merchantQrContainer canvas');
+  if (!canvas) {
+    showToast('No QR to download');
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.download = 'merchant-qr.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function renderQrHistory() {
+  const container = document.getElementById('qrTransactionList');
+  if (!container) return;
+
+  const acc = user.accounts.find(a => a.id === activeAccountId);
+  if (!acc || !acc.transactions) {
+    container.innerHTML = '<p class="text-slate-500 text-center py-4">No QR transactions yet</p>';
+    return;
+  }
+
+  const qrTxs = acc.transactions.filter(tx => tx.type === 'qr_payment' || tx.type === 'qr_receive');
+  if (qrTxs.length === 0) {
+    container.innerHTML = '<p class="text-slate-500 text-center py-4">No QR transactions yet</p>';
+    return;
+  }
+
+  container.innerHTML = qrTxs.slice().reverse().map(tx => `
+    <div class="p-3 border rounded mb-2">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="font-medium">${tx.description}</div>
+          <div class="text-xs text-slate-500">${shortDate(tx.date)}</div>
+        </div>
+        <div class="${tx.amount > 0 ? 'text-green-600' : 'text-red-600'} font-medium">
+          ${tx.amount > 0 ? '+' : ''}${formatCurrency(Math.abs(tx.amount))}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function shareQrCode() {
+  const canvas = document.querySelector('#generatedQrContainer canvas');
+  if (!canvas) {
+    showToast('No QR to share');
+    return;
+  }
+
+  if (navigator.share) {
+    canvas.toBlob(blob => {
+      const file = new File([blob], 'payment-qr.png', { type: 'image/png' });
+      navigator.share({
+        title: 'Payment QR Code',
+        text: 'Scan this QR to complete payment',
+        files: [file]
+      });
+    });
+  } else {
+    showToast('Sharing not supported on this device');
+  }
+}
+
+function downloadQrCode() {
+  const canvas = document.querySelector('#generatedQrContainer canvas');
+  if (!canvas) {
+    showToast('No QR to download');
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.download = 'payment-qr.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
 
 // Expose functions globally
 window.startAction = startAction;
@@ -1251,3 +1545,16 @@ window.openQrMock = openQrMock;
 window.openBills = openBills;
 window.openSupport = openSupport;
 window.logout = logout;
+// Enhanced QR functions
+window.openEnhancedQrModal = openEnhancedQrModal;
+window.closeEnhancedQrModal = closeEnhancedQrModal;
+window.switchQrTab = switchQrTab;
+window.startQrScan = startQrScan;
+window.showQrTemplates = showQrTemplates;
+window.generatePaymentQr = generatePaymentQr;
+window.regenerateReceiveQr = regenerateReceiveQr;
+window.generateMerchantQr = generateMerchantQr;
+window.downloadMerchantQr = downloadMerchantQr;
+window.stopEnhancedQrScan = stopEnhancedQrScan;
+window.shareQrCode = shareQrCode;
+window.downloadQrCode = downloadQrCode;
