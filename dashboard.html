@@ -58,52 +58,7 @@
       </div>
 
         <!-- QR Scan Modal -->
-        <div id="qrModal" class="hidden fixed inset-0 z-70 modal-backdrop flex items-center justify-center p-4">
-          <div class="bg-white rounded-lg p-4 w-full max-w-lg">
-            <div class="flex items-start justify-between mb-3">
-              <div>
-                <h3 class="text-lg font-semibold">Scan QR — QR Pay</h3>
-                <p class="text-xs text-slate-500 mt-1">Allow camera access to scan a merchant QR code.</p>
-              </div>
-              <button class="text-slate-500" onclick="closeQrModal()">✕</button>
-            </div>
-
-            <div id="qrBody" class="space-y-3">
-              <div class="bg-black rounded overflow-hidden">
-                <video id="qrVideo" class="w-full h-64 bg-black" autoplay playsinline></video>
-              </div>
-              <div id="qrStatus" class="text-sm text-slate-500">Waiting for camera permission...</div>
-
-              <div class="flex gap-2">
-                <button id="qrStartBtn" type="button" class="flex-1 bg-indigo-600 text-white py-2 rounded" onclick="startQrCamera()">Start Camera</button>
-                <button id="qrScanBtn" type="button" class="flex-1 py-2 rounded border" onclick="scanQrNow()">Scan Now</button>
-                <button id="qrStopBtn" type="button" class="flex-1 py-2 rounded border" onclick="stopQrCamera()">Stop</button>
-              </div>
-
-              <div id="qrResultWrap" class="hidden p-2 border rounded bg-emerald-50">
-                <div class="font-medium">Scanned result</div>
-                <pre id="qrResult" class="text-xs text-slate-700"></pre>
-                <div class="flex gap-2 mt-2">
-                  <button class="flex-1 bg-green-600 text-white py-2 rounded" onclick="handleQrPayment()">Pay with scanned data</button>
-                  <button class="flex-1 py-2 rounded border" onclick="resetQrResult()">Reset</button>
-                </div>
-              </div>
-
-              <div id="qrFallback" class="text-xs text-slate-400">If camera doesn't work, you can manually enter payment details below.</div>
-              <!-- Manual fallback inputs -->
-              <div id="qrManualWrap" class="mt-2 space-y-2">
-                <div>
-                  <label class="text-xs text-slate-600">Amount (KES)</label>
-                  <input id="qr_manual_amount" type="number" class="w-full border p-2 rounded" placeholder="Amount (e.g. 500)" />
-                </div>
-                <div>
-                  <label class="text-xs text-slate-600">Reference / Note</label>
-                  <input id="qr_manual_ref" class="w-full border p-2 rounded" placeholder="Reference (optional)" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- old centered qrModal removed; using actionModal inline scanner instead -->
     </div>
 
       <!-- SEND Modal (quick action) -->
@@ -422,43 +377,51 @@
   <div class="max-w-4xl mx-auto space-y-6">
 
   <!-- ACTION MODAL (Send/Withdraw/Deposit) -->
-  <div id="actionModal" class="hidden fixed inset-0 modal-backdrop action-modal">
-    <div class="modal-content">
-      <h3 id="actionTitle" class="text-lg font-semibold mb-3">Action</h3>
-      <div id="actionForm">
-        <div id="recipientField" class="mb-3">
-          <label class="text-xs text-slate-600">Recipient (phone or account)</label>
-          <input id="recipientInput" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX or Account name">
+  <!-- ACTION MODAL (Send / Withdraw / Deposit + QR Payments) -->
+  <div id="actionModal" class="hidden fixed inset-0 modal-backdrop action-modal z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+    <div class="modal-content bg-white w-11/12 max-w-md p-5 rounded-xl shadow-xl relative">
+
+        <h3 id="actionTitle" class="text-xl font-semibold mb-4">Action</h3>
+
+        <!-- Main Form -->
+        <div id="actionForm">
+
+            <div id="recipientField" class="mb-3">
+                <label class="text-xs text-slate-600">Recipient (phone or account)</label>
+                <input id="recipientInput" class="w-full border p-2 rounded" placeholder="2547XXXXXXXX or Account name">
+            </div>
+
+            <label class="text-xs text-slate-600">Amount (KES)</label>
+            <input id="amountInput" type="number" class="w-full border p-2 rounded mb-3" placeholder="Amount">
+
+            <label class="text-xs text-slate-600">Note (optional)</label>
+            <input id="noteInput" class="w-full border p-2 rounded mb-3" placeholder="For rent, lunch, ..." />
         </div>
 
-        <!-- Deposit Source Selection -->
-        <div id="depositSourceField" class="mb-3 hidden">
-          <label class="text-xs text-slate-600 block mb-1">Deposit Source</label>
-          <div class="flex gap-4">
-            <label class="inline-flex items-center gap-2">
-              <input type="radio" name="depositSource" value="mpesa" />
-              MPESA
-            </label>
-            <label class="inline-flex items-center gap-2">
-              <input type="radio" name="depositSource" value="airtel" />
-              Airtel Money
-            </label>
-            <label class="inline-flex items-center gap-2">
-              <input type="radio" name="depositSource" value="bank" />
-              Bank
-            </label>
-          </div>
+        <!-- QR Options -->
+        <div class="grid grid-cols-2 gap-2 mb-4">
+            <button id="scanQRBtn" class="bg-green-600 text-white py-2 rounded">Scan QR</button>
+            <button id="showQRBtn" class="bg-blue-600 text-white py-2 rounded">Show QR</button>
         </div>
 
-        <label class="text-xs text-slate-600">Amount (KES)</label>
-        <input id="amountInput" type="number" class="w-full border p-2 rounded mb-3" placeholder="Amount">
-        <label class="text-xs text-slate-600">Note (optional)</label>
-        <input id="noteInput" class="w-full border p-2 rounded mb-3" placeholder="For rent, lunch, ..." />
-      </div>
-      <div class="flex gap-2 mt-4">
-        <button id="confirmActionBtn" class="flex-1 bg-indigo-600 text-white py-2 rounded">Confirm</button>
-        <button class="flex-1 py-2 rounded border" id="closeActionModalBtn">Cancel</button>
-      </div>
+        <!-- QR Scanner Section -->
+        <div id="qrScannerSection" class="hidden">
+            <div id="qrScanner" style="width: 260px;" class="mx-auto"></div>
+            <p class="text-center text-xs mt-2 text-slate-600">Point your camera at a QR code</p>
+            <button id="stopScannerBtn" class="mt-3 w-full border py-2 rounded">Stop Scanner</button>
+        </div>
+
+        <!-- QR Generator Section -->
+        <div id="qrPaymentSection" class="hidden mt-4 text-center">
+            <div id="paymentQr" class="mx-auto"></div>
+            <p class="text-xs text-slate-600 mt-2">Scan this QR to complete payment</p>
+        </div>
+
+        <!-- Footer Buttons -->
+        <div class="flex gap-2 mt-5">
+            <button id="confirmActionBtn" class="flex-1 bg-indigo-600 text-white py-2 rounded">Confirm</button>
+            <button class="flex-1 py-2 rounded border" id="closeActionModalBtn">Cancel</button>
+        </div>
     </div>
   </div>
 
@@ -1002,8 +965,11 @@
 
 <!--DASHBOARD JAVASCRISPT SCRIPT-->
   <script src="dashboard.js"></script>
-  <!-- jsQR (for QR scanning) -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!-- removed old jsQR; using Html5Qrcode instead -->
+  <!-- Html5Qrcode (scanner) -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <!-- QRCode generator (qrcodejs) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
  <script>
   function toggleMobileProfileEdit() {
     const box = document.getElementById("mobileProfileEdit");

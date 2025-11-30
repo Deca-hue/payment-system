@@ -391,12 +391,11 @@ function startAction(kind) {
 }
 
 function closeAllActionModals() {
-  ['bankModal','paypalModal','agentModal','mpesaModal','billsModal','sendModal','withdrawModal','actionModal','depositSourceModal','airtelModal','topUpModal','qrModal'].forEach(id => {
+  ['bankModal','paypalModal','agentModal','mpesaModal','billsModal','sendModal','withdrawModal','actionModal','depositSourceModal','airtelModal','topUpModal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
-  // Ensure QR camera is stopped when closing modals
-  try { stopQrCamera(); } catch(e) {}
+  try { stopInlineScanner(); } catch(e) {}
 }
 
 function openPinFromModal(kind) {
@@ -1010,206 +1009,76 @@ function showToast(msg) {
 /* -------------------------
    Utility Functions
 ------------------------- */
-// QR scanning state
-let qrStream = null;
-let qrScanInterval = null;
-let qrRaf = null;
-let qrDetectedData = null;
+// (old centered QR scanner state removed) — using inline Html5Qrcode scanner instead
 
-function openQrMock() { openQrModal(); }
-function openQrModal() {
+// inline scanner (used in actionModal) state
+let inlineQrStream = null;
+let inlineQrRaf = null;
+let inlineQrDetectedData = null;
+// Html5Qrcode inline scanner instance
+let qrScanner = null;
+
+function openQrMock() {
+  // open the action modal and start the inline scanner
   if (typeof closeAllMobileSheets === 'function') closeAllMobileSheets();
   closeAllActionModals();
-  qrDetectedData = null;
-  const wrap = document.getElementById('qrResultWrap'); if (wrap) wrap.classList.add('hidden');
-  const status = document.getElementById('qrStatus'); if (status) status.textContent = 'Requesting camera permission...';
-  const modal = document.getElementById('qrModal'); if (modal) modal.classList.remove('hidden');
-  // start camera immediately (will prompt permission)
-  startQrCamera();
+  const modal = document.getElementById('actionModal'); if (modal) modal.classList.remove('hidden');
+  const sec = document.getElementById('qrScannerSection'); if (sec) sec.classList.remove('hidden');
+  const pay = document.getElementById('qrPaymentSection'); if (pay) pay.classList.add('hidden');
+  startInlineScanner();
 }
 
-function closeQrModal() {
-  stopQrCamera();
-  const modal = document.getElementById('qrModal'); if (modal) modal.classList.add('hidden');
-  resetQrResult();
-}
 
-async function startQrCamera() {
-  const video = document.getElementById('qrVideo');
-  const status = document.getElementById('qrStatus');
-  if (!video) return;
+async function startInlineScanner() {
+  const container = document.getElementById('qrScanner');
+  if (!container) return;
   try {
-    if (qrStream) stopQrCamera();
-    qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    video.srcObject = qrStream;
-    await video.play();
-    if (status) status.textContent = 'Camera active — scanning...';
-    // use requestAnimationFrame scan loop for faster auto-scan
-    function scanLoop() {
-      try {
-        const w = video.videoWidth;
-        const h = video.videoHeight;
-        if (w && h) {
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, w, h);
-          const img = ctx.getImageData(0, 0, w, h);
-          if (typeof jsQR === 'function') {
-            const code = jsQR(img.data, img.width, img.height);
-            if (code && code.data) {
-              qrDetectedData = code.data;
-              showQrResult(qrDetectedData);
-              stopQrCamera();
-              return; // stop scanning
-            }
-          }
+    // initialize Html5Qrcode if needed
+    if (!qrScanner) qrScanner = new Html5Qrcode('qrScanner');
+
+    await qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 230 },
+      qrMessage => {
+        console.log('QR Scanned:', qrMessage);
+        try {
+          const data = JSON.parse(qrMessage);
+
+          if (data.to) document.getElementById('recipientInput').value = data.to;
+          if (data.amount) document.getElementById('amountInput').value = data.amount;
+          if (data.note) document.getElementById('noteInput').value = data.note;
+
+        } catch (e) {
+          alert('Invalid QR Format');
         }
-      } catch (err) {
-        // ignore scan errors
-      }
-      qrRaf = requestAnimationFrame(scanLoop);
-    }
 
-    // trigger an immediate scan and then continue looping
-    qrRaf = requestAnimationFrame(scanLoop);
+        // stop scanner after successful scan
+        qrScanner.stop().then(() => {
+          try { qrScanner.clear(); } catch(e){}
+        }).catch(()=>{});
+      }
+    );
   } catch (err) {
-    if (status) status.textContent = 'Camera access denied or not available.';
-    console.error('QR camera error', err);
+    showToast('Camera access denied or not available.');
+    console.error('Inline QR camera error', err);
   }
 }
 
-function stopQrCamera() {
-  if (qrScanInterval) { clearInterval(qrScanInterval); qrScanInterval = null; }
-  if (qrRaf) { cancelAnimationFrame(qrRaf); qrRaf = null; }
-  if (qrStream) {
-    try { qrStream.getTracks().forEach(t => t.stop()); } catch(e){}
-    qrStream = null;
-  }
-  const status = document.getElementById('qrStatus'); if (status) status.textContent = 'Camera stopped';
-  const video = document.getElementById('qrVideo'); if (video) { try { video.pause(); video.srcObject = null; } catch(e){} }
-}
-
-function scanQrNow() {
-  const video = document.getElementById('qrVideo');
-  if (!video || !video.videoWidth) { return; }
-  const w = video.videoWidth; const h = video.videoHeight;
-  const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, w, h);
-  const img = ctx.getImageData(0,0,w,h);
-  if (typeof jsQR === 'function') {
-    const code = jsQR(img.data, img.width, img.height);
-    if (code && code.data) {
-      qrDetectedData = code.data;
-      showQrResult(qrDetectedData);
-      stopQrCamera();
-      return;
-    }
-  }
-  const status = document.getElementById('qrStatus'); if (status) status.textContent = 'No QR found — try again or manual input.';
-}
-
-function showQrResult(data) {
-  const wrap = document.getElementById('qrResultWrap'); if (wrap) wrap.classList.remove('hidden');
-  const pre = document.getElementById('qrResult'); if (pre) pre.textContent = data;
-  const status = document.getElementById('qrStatus'); if (status) status.textContent = 'QR scanned';
-  // try to prefill manual fallback inputs from parsed data
+function stopInlineScanner() {
   try {
-    const parsed = parseQrData(data || '');
-    const mAmt = document.getElementById('qr_manual_amount'); if (mAmt && parsed.amount) mAmt.value = Number(parsed.amount);
-    const mRef = document.getElementById('qr_manual_ref'); if (mRef && (parsed.ref || parsed.reference)) mRef.value = parsed.ref || parsed.reference;
-  } catch (e) {}
-}
-
-function resetQrResult() {
-  qrDetectedData = null;
-  const wrap = document.getElementById('qrResultWrap'); if (wrap) wrap.classList.add('hidden');
-  const pre = document.getElementById('qrResult'); if (pre) pre.textContent = '';
-  const status = document.getElementById('qrStatus'); if (status) status.textContent = 'Waiting for camera permission...';
-  // clear manual fields too
-  const mAmt = document.getElementById('qr_manual_amount'); if (mAmt) mAmt.value = '';
-  const mRef = document.getElementById('qr_manual_ref'); if (mRef) mRef.value = '';
-}
-
-function handleQrPayment() {
-  // Allow manual fallback — use scanned data if present, otherwise take manual inputs
-  const scanned = qrDetectedData || '';
-  const parsed = scanned ? parseQrData(scanned) : {};
-
-  // if manual inputs exist, they take precedence
-  const manualAmtEl = document.getElementById('qr_manual_amount');
-  const manualRefEl = document.getElementById('qr_manual_ref');
-  const manualAmt = manualAmtEl ? manualAmtEl.value.trim() : '';
-  const manualRef = manualRefEl ? manualRefEl.value.trim() : '';
-
-  const amt = manualAmt || parsed.amount || parsed.amt || parsed.value || parsed.qrAmount || null;
-  const ref = manualRef || parsed.ref || parsed.reference || parsed.r || parsed.note || null;
-
-  // If we have nothing at all, show status and do nothing
-  if (!amt) {
-    const status = document.getElementById('qrStatus'); if (status) status.textContent = 'Enter amount (manual) or scan a QR code first.';
-    return;
-  }
-
-  // fill mpesa modal inputs if present
-  const mpesaAmt = document.getElementById('mpesa_amount');
-  const mpesaRef = document.getElementById('mpesa_ref');
-  if (mpesaAmt) mpesaAmt.value = Number(amt);
-  if (mpesaRef && ref) mpesaRef.value = ref;
-
-  // close QR modal and proceed to MPESA flow (mock STK)
-  closeQrModal();
-  // open pin flow for mpesa — this will read mpesa_* inputs and perform mock processing
-  openPinFromModal('mpesa');
-}
-
-// Enhanced QR parse function — attempts multiple heuristics and common formats
-function parseQrData(data) {
-  const out = {};
-  if (!data || typeof data !== 'string') return out;
-
-  const s = data.trim();
-
-  // Attempt URL parsing (e.g., https://merchant.example/pay?amount=500&ref=X)
-  try {
-    if (s.includes('http://') || s.includes('https://') || s.includes('?') || s.includes('&')) {
-      const url = s.includes('://') ? new URL(s) : new URL('http://dummy?' + s);
-      for (const [k, v] of url.searchParams.entries()) {
-        out[k.toLowerCase()] = v;
-      }
+    if (qrScanner) {
+      qrScanner.stop().then(() => { try { qrScanner.clear(); } catch(e){}; qrScanner = null; }).catch(()=>{ qrScanner = null; });
     }
-  } catch (e) { /* ignore */ }
-
-  // common key/value pairs not in URL (e.g. 'amount=500&ref=XYZ' or 'amount:500;ref:XYZ')
-  const kvPairs = s.match(/([a-zA-Z0-9_]+)[:=]([^&;\s]+)/g);
-  if (kvPairs) {
-    kvPairs.forEach(p => {
-      const m = p.match(/([^:=]+)[:=](.+)/);
-      if (m) out[m[1].toLowerCase()] = m[2];
-    });
+  } catch(e){}
+  if (inlineQrRaf) { cancelAnimationFrame(inlineQrRaf); inlineQrRaf = null; }
+  if (inlineQrStream) {
+    try { inlineQrStream.getTracks().forEach(t => t.stop()); } catch(e){}
+    inlineQrStream = null;
   }
-
-  // EMV / GS1-like simple extraction
-  // Look for '54' (amount) tag followed by length and value: 54{len}{value}
-  const emvMatch = s.match(/54(\d{2})(\d+(?:\.\d+)?)/);
-  if (emvMatch) out.amount = emvMatch[2];
-
-  // Common human text patterns: 'KES 500', 'Ksh 500', 'amount 500', 'AMOUNT:500'
-  const amtMatch = s.match(/(?:KES|Ksh|USD|EUR|amount|amt|AMOUNT|AMT)[:\s]*([0-9]+(?:\.[0-9]+)?)/i);
-  if (amtMatch) out.amount = out.amount || amtMatch[1];
-
-  // Try to pick a plausible reference -- 'ref=' or 'r=' or strings like 'INV123'
-  const refMatch = s.match(/(?:ref|r|invoice|inv)[:=\s]*([A-Za-z0-9_-]+)/i);
-  if (refMatch) out.ref = out.ref || refMatch[1];
-
-  // Fallback: bare numbers for amount
-  if (!out.amount) {
-    const bareNum = s.match(/(^|\D)([0-9]{2,6}(?:\.[0-9]+)?)(\D|$)/);
-    if (bareNum) out.amount = bareNum[2];
-  }
-
-  return out;
+  const container = document.getElementById('qrScanner'); if (container) container.innerHTML = '';
 }
+
+
 function openBills() { startAction('bills'); }
 function openSupport() { alert('Support: demo@moneyapp.example'); }
 
@@ -1281,6 +1150,40 @@ function init() {
       closeAllActionModals();
       const el = document.getElementById('bankModal');
       if (el) el.classList.remove('hidden');
+    });
+
+    // Action modal: inline QR scanner & QR generator
+    const scanQRBtn = document.getElementById('scanQRBtn');
+    if (scanQRBtn) scanQRBtn.addEventListener('click', () => {
+      const sec = document.getElementById('qrScannerSection');
+      const pay = document.getElementById('qrPaymentSection');
+      if (pay) pay.classList.add('hidden');
+      if (sec) sec.classList.remove('hidden');
+      startInlineScanner();
+    });
+
+    const stopScannerBtn = document.getElementById('stopScannerBtn');
+    if (stopScannerBtn) stopScannerBtn.addEventListener('click', () => {
+      stopInlineScanner();
+      const sec = document.getElementById('qrScannerSection'); if (sec) sec.classList.add('hidden');
+    });
+
+    const showQRBtn = document.getElementById('showQRBtn');
+    if (showQRBtn) showQRBtn.addEventListener('click', () => {
+      stopInlineScanner();
+      const sec = document.getElementById('qrScannerSection'); if (sec) sec.classList.add('hidden');
+      const pay = document.getElementById('qrPaymentSection'); if (pay) pay.classList.remove('hidden');
+      const recipient = (document.getElementById('recipientInput')?.value || '').trim();
+      const amount = (document.getElementById('amountInput')?.value || '').trim();
+      const note = (document.getElementById('noteInput')?.value || '').trim();
+
+      const qrData = JSON.stringify({ type: 'payment', to: recipient || 'User', amount: amount || '0', note: note || '' });
+      const container = document.getElementById('paymentQr');
+      if (container) {
+        container.innerHTML = '';
+        // use QRCode library to generate
+        new QRCode(container, { text: qrData, width: 180, height: 180 });
+      }
     });
   }
   
