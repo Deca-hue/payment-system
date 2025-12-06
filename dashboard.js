@@ -1017,6 +1017,8 @@ let inlineQrRaf = null;
 let inlineQrDetectedData = null;
 // Html5Qrcode inline scanner instance
 let qrScanner = null;
+// Html5Qrcode barcode scanner instance
+let barcodeScanner = null;
 
 function openQrMock() {
   // open the enhanced QR modal
@@ -1089,6 +1091,73 @@ function stopInlineScanner() {
     inlineQrStream = null;
   }
   const container = document.getElementById('qrScanner'); if (container) container.innerHTML = '';
+}
+
+async function startInlineBarcodeScanner() {
+  const container = document.getElementById('barcodeScanner');
+  if (!container) return;
+
+  if (typeof Html5Qrcode === 'undefined') {
+    showToast('Scanner library not loaded yet. Please reload the page and try again.');
+    const msgEl = document.getElementById('barcodeScannerMsg'); if (msgEl) { msgEl.textContent = 'Scanner library is not available. Reload or check network.'; msgEl.classList.remove('hidden'); }
+    return;
+  }
+  try {
+    // first request camera permission explicitly to ensure browser shows prompt
+    try {
+      const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // immediately stop tracks — this is only to trigger permission prompt and to ensure access
+      testStream.getTracks().forEach(t => t.stop());
+    } catch (permErr) {
+      showToast('Camera permission denied or not available. Check your browser settings and try again.');
+      return;
+    }
+
+    // initialize Html5Qrcode if needed
+    if (!barcodeScanner) barcodeScanner = new Html5Qrcode('barcodeScanner');
+
+    await barcodeScanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: 230,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.ITF
+        ]
+      },
+      barcodeMessage => {
+        console.log('Barcode Scanned:', barcodeMessage);
+        // For barcode, we can populate fields or handle differently
+        // For now, just alert the scanned data
+        alert('Barcode scanned: ' + barcodeMessage);
+
+        // stop scanner after successful scan
+        barcodeScanner.stop().then(() => {
+          try { barcodeScanner.clear(); } catch(e){}
+        }).catch(()=>{});
+      }
+    );
+  } catch (err) {
+    showToast('Camera access denied or not available.');
+    const msgEl = document.getElementById('barcodeScannerMsg'); if (msgEl) { msgEl.textContent = 'Camera access denied. Open site settings and allow camera access, or run over localhost/HTTPS.'; msgEl.classList.remove('hidden'); }
+    console.error('Inline Barcode camera error', err);
+  }
+}
+
+function stopInlineBarcodeScanner() {
+  try {
+    if (barcodeScanner) {
+      barcodeScanner.stop().then(() => { try { barcodeScanner.clear(); } catch(e){}; barcodeScanner = null; }).catch(()=>{ barcodeScanner = null; });
+    }
+  } catch(e){}
+  const container = document.getElementById('barcodeScanner'); if (container) container.innerHTML = '';
 }
 
 
