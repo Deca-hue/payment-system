@@ -1188,8 +1188,7 @@ function init() {
       e.stopPropagation();
       toggleNotifDropdown();
     });
-  }}
-
+  }
   // Add event listeners for action modal buttons
   const confirmActionBtn = document.getElementById('confirmActionBtn');
   if (confirmActionBtn) {
@@ -1254,7 +1253,7 @@ function init() {
   }
   updateNotifBadge();
   renderNotifs();
-
+}
 
 function renderMobileAccounts() {
   const container = document.getElementById('mobileAccountsList');
@@ -1345,8 +1344,14 @@ function switchQrTab(tab) {
 function startQrScan() {
   const scanner = document.getElementById('enhancedQrScanner');
   const status = document.getElementById('enhancedQrStatus');
-  if (scanner) scanner.classList.remove('hidden');
+  if (scanner) {
+    scanner.classList.remove('hidden');
+    scanner.classList.add('fixed', 'inset-0', 'z-50', 'bg-black', 'flex', 'items-center', 'justify-center');
+  }
   if (status) status.textContent = 'Initializing camera...';
+
+  // Hide the modal so camera takes its place
+  document.getElementById('enhancedQrModal').classList.add('hidden');
 
   if (typeof Html5Qrcode === 'undefined') {
     if (status) status.textContent = 'Scanner library not loaded.';
@@ -1389,7 +1394,13 @@ function startQrScan() {
 
 function stopEnhancedQrScan() {
   const scanner = document.getElementById('enhancedQrScanner');
-  if (scanner) scanner.classList.add('hidden');
+  if (scanner) {
+    scanner.classList.add('hidden');
+    scanner.classList.remove('fixed', 'inset-0', 'z-50', 'bg-black', 'flex', 'items-center', 'justify-center');
+  }
+
+  // Show the modal again after stopping scan
+  document.getElementById('enhancedQrModal').classList.remove('hidden');
 
   try {
     if (enhancedQrScanner) {
