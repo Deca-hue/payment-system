@@ -1052,7 +1052,7 @@ async function startInlineScanner() {
 
     await qrScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: 230 },
+      { fps: 10, qrbox: 240 },
       qrMessage => {
         console.log('QR Scanned:', qrMessage);
         try {
@@ -1294,7 +1294,20 @@ function openEnhancedQrModal() {
 
 function closeEnhancedQrModal() {
   document.getElementById('enhancedQrModal').classList.add('hidden');
-  stopEnhancedQrScan();
+  // Stop scan if running
+  const scanner = document.getElementById('enhancedQrScanner');
+  if (scanner && !scanner.classList.contains('hidden')) {
+    scanner.classList.add('hidden');
+    scanner.classList.remove('fixed', 'inset-0', 'z-50', 'bg-black', 'flex', 'items-center', 'justify-center');
+  }
+  try {
+    if (enhancedQrScanner) {
+      enhancedQrScanner.stop().then(() => {
+        try { enhancedQrScanner.clear(); } catch(e){}
+        enhancedQrScanner = null;
+      }).catch(()=>{ enhancedQrScanner = null; });
+    }
+  } catch(e){}
   // Clear any generated QRs
   const containers = ['receiveQrContainer', 'merchantQrContainer', 'generatedQrContainer'];
   containers.forEach(id => {
