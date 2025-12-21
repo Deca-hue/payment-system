@@ -6,68 +6,147 @@
   <title>Money App | Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    :root {
+      --royal-azure: #003366;
+      --gold: #FFD700;
+      --dark-bg: linear-gradient(135deg, #001122 0%, #002244 100%);
+    }
+
+    /* Premium glassmorphism effect */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Premium input styling */
+    .premium-input {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .premium-input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .premium-input::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Premium button styling */
+    .premium-btn {
+      background: linear-gradient(135deg, var(--royal-azure) 0%, var(--gold) 100%);
+      border: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 51, 102, 0.3);
+    }
+
+    .premium-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 51, 102, 0.4);
+    }
+
+    /* Premium heading */
+    .premium-heading {
+      color: var(--gold);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      font-weight: 700;
+    }
+
+    /* Premium text */
+    .premium-text {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .premium-link {
+      color: var(--gold);
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .premium-link:hover {
+      color: #FFE55C;
+    }
+
     /* small modal backdrop style so modals center on mobile */
-    .modal-backdrop { background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
+    .modal-backdrop {
+      background: rgba(0,0,0,0.6);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      backdrop-filter: blur(5px);
+    }
+
+    /* Premium modal styling */
+    .premium-modal {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
   </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white shadow-lg rounded-lg w-full max-w-sm mx-4 sm:mx-auto p-6">
+<body style="background: var(--dark-bg);" class="flex items-center justify-center min-h-screen">
+  <div class="glass-card rounded-xl w-full max-w-sm mx-4 sm:mx-auto p-8">
     <!-- LOGIN SECTION -->
     <div id="loginSection">
-      <h1 class="text-2xl font-semibold mb-4 text-center">Login</h1>
-      <input id="loginPhone" type="text" placeholder="Phone Number" class="w-full border p-2 rounded mb-3">
-      <input id="loginCode" type="password" placeholder="Special Code" class="w-full border p-2 rounded mb-3">
-      <button onclick="loginUser()" class="w-full bg-indigo-600 text-white py-2 rounded">Login</button>
+      <h1 class="text-3xl premium-heading mb-6 text-center">Login</h1>
+      <input id="loginPhone" type="text" placeholder="Phone Number" class="w-full premium-input p-3 rounded-lg mb-4">
+      <input id="loginCode" type="password" placeholder="Special Code" class="w-full premium-input p-3 rounded-lg mb-4">
+      <button onclick="loginUser()" class="w-full premium-btn text-white py-3 rounded-lg font-semibold">Login</button>
 
-      <p class="text-center text-sm mt-3">
-        New user? 
-        <button onclick="toggleSection()" class="text-indigo-600 underline">Create Account</button>
+      <p class="text-center premium-text text-sm mt-4">
+        New user?
+        <button onclick="toggleSection()" class="premium-link font-semibold ml-1">Create Account</button>
       </p>
-      <p id="loginMessage" class="text-center mt-2 text-sm text-red-500"></p>
-      <div class="text-center mt-3">
-  <button onclick="openForgotPinModal()" class="text-sm text-indigo-600 hover:underline">
-    Forgot PIN?
-  </button>
-</div>
-
+      <p id="loginMessage" class="text-center mt-3 text-sm text-red-300"></p>
+      <div class="text-center mt-4">
+        <button onclick="openForgotPinModal()" class="premium-link text-sm font-medium">
+          Forgot PIN?
+        </button>
+      </div>
     </div>
 
   <!-- REGISTER SECTION (Hidden by default) -->
   <div id="registerSection" class="hidden">
-      <h1 class="text-2xl font-semibold mb-4 text-center">Create Account</h1>
-      <input id="regName" type="text" placeholder="Full Name" class="w-full border p-2 rounded mb-3">
-      <input id="regPhone" type="text" placeholder="Phone Number" class="w-full border p-2 rounded mb-3">
-      <input id="regCode" type="password" placeholder="Special Code (4 digits)" class="w-full border p-2 rounded mb-3">
-      <button onclick="registerUser()" class="w-full bg-green-600 text-white py-2 rounded">Register</button>
+      <h1 class="text-3xl premium-heading mb-6 text-center">Create Account</h1>
+      <input id="regName" type="text" placeholder="Full Name" class="w-full premium-input p-3 rounded-lg mb-4">
+      <input id="regPhone" type="text" placeholder="Phone Number" class="w-full premium-input p-3 rounded-lg mb-4">
+      <input id="regCode" type="password" placeholder="Special Code (4 digits)" class="w-full premium-input p-3 rounded-lg mb-4">
+      <button onclick="registerUser()" class="w-full premium-btn text-white py-3 rounded-lg font-semibold">Register</button>
 
-      <p class="text-center text-sm mt-3">
-        Already have an account? 
-        <button onclick="toggleSection()" class="text-indigo-600 underline">Back to Login</button>
+      <p class="text-center premium-text text-sm mt-4">
+        Already have an account?
+        <button onclick="toggleSection()" class="premium-link font-semibold ml-1">Back to Login</button>
       </p>
-      <p id="registerMessage" class="text-center mt-2 text-sm text-green-600"></p>
+      <p id="registerMessage" class="text-center mt-3 text-sm text-green-300"></p>
     </div>
   </div>
   
 <!-- FORGOT PIN MODAL -->
   <div id="forgotPinModal" class="hidden fixed inset-0 z-50 modal-backdrop p-4">
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl mx-2">
-    
-    <h3 class="text-lg font-semibold mb-2">Reset PIN</h3>
-    <p class="text-sm text-slate-500 mb-4">
+  <div class="premium-modal rounded-xl p-6 w-full max-w-sm mx-2">
+
+    <h3 class="text-xl premium-heading mb-3 text-center">Reset PIN</h3>
+    <p class="premium-text text-sm mb-4 text-center">
       Answer your recovery question to reset your PIN.
     </p>
 
-    <div id="fp_question_box" class="text-sm font-medium mb-3 text-slate-700">
+    <div id="fp_question_box" class="premium-text text-sm font-medium mb-4 text-center">
       Loading question...
     </div>
 
-    <input id="fp_answer" class="w-full border p-2 rounded mb-4" placeholder="Your answer" />
+    <input id="fp_answer" class="w-full premium-input p-3 rounded-lg mb-4" placeholder="Your answer" />
 
-    <div class="flex gap-2">
-      <button onclick="submitForgotPin()" class="flex-1 bg-indigo-600 text-white py-2 rounded">
+    <div class="flex gap-3">
+      <button onclick="submitForgotPin()" class="flex-1 premium-btn text-white py-3 rounded-lg font-semibold">
         Continue
       </button>
-      <button onclick="closeForgotPinModal()" class="flex-1 border py-2 rounded">
+      <button onclick="closeForgotPinModal()" class="flex-1 premium-input py-3 rounded-lg font-semibold text-center cursor-pointer">
         Cancel
       </button>
     </div>
@@ -76,19 +155,19 @@
 
 <!-- NEW PIN MODAL (Step 2 after correct answer) -->
   <div id="newPinModal" class="hidden fixed inset-0 z-50 modal-backdrop p-4">
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl mx-2">
+  <div class="premium-modal rounded-xl p-6 w-full max-w-sm mx-2">
 
-    <h3 class="text-lg font-semibold mb-2">Create New PIN</h3>
-    <p class="text-sm text-slate-500 mb-4">Enter a new 4–6 digit PIN.</p>
+    <h3 class="text-xl premium-heading mb-3 text-center">Create New PIN</h3>
+    <p class="premium-text text-sm mb-4 text-center">Enter a new 4–6 digit PIN.</p>
 
-    <input id="reset_newpin" maxlength="6" type="password" class="w-full border p-2 rounded mb-3" placeholder="New PIN" />
-    <input id="reset_newpin_confirm" maxlength="6" type="password" class="w-full border p-2 rounded mb-4" placeholder="Confirm PIN" />
+    <input id="reset_newpin" maxlength="6" type="password" class="w-full premium-input p-3 rounded-lg mb-4" placeholder="New PIN" />
+    <input id="reset_newpin_confirm" maxlength="6" type="password" class="w-full premium-input p-3 rounded-lg mb-4" placeholder="Confirm PIN" />
 
-    <div class="flex gap-2">
-      <button onclick="saveNewPin()" class="flex-1 bg-green-600 text-white py-2 rounded">
+    <div class="flex gap-3">
+      <button onclick="saveNewPin()" class="flex-1 premium-btn text-white py-3 rounded-lg font-semibold">
         Save PIN
       </button>
-      <button onclick="closeNewPinModal()" class="flex-1 border py-2 rounded">
+      <button onclick="closeNewPinModal()" class="flex-1 premium-input py-3 rounded-lg font-semibold text-center cursor-pointer">
         Cancel
       </button>
     </div>
